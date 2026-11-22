@@ -79,6 +79,32 @@
             background: rgba(14, 165, 233, 0.85);
             transform: scale(0.94);
         }
+
+        .analog-pad {
+            position: relative;
+            width: 112px;
+            height: 112px;
+            border-radius: 9999px;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(6px);
+            touch-action: none;
+        }
+
+        .analog-stick {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 44px;
+            height: 44px;
+            margin-left: -22px;
+            margin-top: -22px;
+            border-radius: 9999px;
+            background: rgba(56, 189, 248, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.65);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -184,15 +210,24 @@
     </div>
 
     <!-- Mobile Touch Controls -->
-    <div id="mobile-controls" class="hidden fixed inset-x-0 bottom-4 z-20 px-4 flex items-end justify-between pointer-events-none">
-        <div class="flex flex-col gap-2 pointer-events-auto">
-            <button id="touch-up" class="touch-btn w-14 h-14 rounded-2xl font-rl text-xl font-bold">W</button>
-            <div class="flex gap-2">
-                <button id="touch-left" class="touch-btn w-14 h-14 rounded-2xl font-rl text-xl font-bold">A</button>
-                <button id="touch-down" class="touch-btn w-14 h-14 rounded-2xl font-rl text-xl font-bold">S</button>
-                <button id="touch-right" class="touch-btn w-14 h-14 rounded-2xl font-rl text-xl font-bold">D</button>
+    <div id="mobile-controls" class="hidden fixed inset-x-0 bottom-4 z-30 px-4 flex flex-wrap items-end justify-between gap-3 pointer-events-none">
+        <div class="flex items-end gap-2.5 pointer-events-auto">
+            <!-- Virtual Analog Stick -->
+            <div id="analog-pad" class="analog-pad" aria-label="Analógico Virtual">
+                <div id="analog-stick" class="analog-stick"></div>
+            </div>
+
+            <!-- Directional Buttons -->
+            <div class="flex flex-col gap-1.5">
+                <button id="touch-up" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">W</button>
+                <div class="flex gap-1.5">
+                    <button id="touch-left" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">A</button>
+                    <button id="touch-down" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">S</button>
+                    <button id="touch-right" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">D</button>
+                </div>
             </div>
         </div>
+
         <div class="flex gap-2.5 pointer-events-auto">
             <button id="touch-drift" class="touch-btn px-3.5 h-14 rounded-2xl text-xs font-extrabold uppercase text-sky-300">Drift</button>
             <button id="touch-boost" class="touch-btn px-4 h-14 rounded-2xl text-xs font-extrabold uppercase text-amber-300">Boost</button>
@@ -2144,9 +2179,9 @@
         }
 
         function applyPlatformUI() {
-            const isPlayingOrCountdown = gameState === 'PLAYING' || gameState === 'COUNTDOWN' || gameState === 'GOAL_CELEBRATION';
-            document.getElementById('pc-controls-hint').classList.toggle('hidden', !(isPlayingOrCountdown && platform === 'pc'));
-            document.getElementById('mobile-controls').classList.toggle('hidden', !(isPlayingOrCountdown && platform === 'mobile'));
+            const showMobileControls = platform === 'mobile' && gameState !== 'PAUSED' && gameState !== 'GAMEOVER';
+            document.getElementById('pc-controls-hint').classList.add('hidden');
+            document.getElementById('mobile-controls').classList.toggle('hidden', !showMobileControls);
             document.getElementById('menu-platform-label').textContent = platform.toUpperCase();
         }
 
@@ -2716,6 +2751,69 @@
                 }
                 touchJumpPressed = true;
             }, () => { touchJumpPressed = false; });
+
+            const analogPad = document.getElementById('analog-pad');
+            const analogStick = document.getElementById('analog-stick');
+            if (analogPad && analogStick) {
+                const maxRadius = 34;
+                let activeAnalogPointerId = null;
+
+                const updateAnalogFromPoint = (clientX, clientY) => {
+                    const rect = analogPad.getBoundingClientRect();
+                    const cx = rect.left + rect.width / 2;
+                    const cy = rect.top + rect.height / 2;
+                    let dx = clientX - cx;
+                    let dy = clientY - cy;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist > maxRadius && dist > 0) {
+                        dx = (dx / dist) * maxRadius;
+                        dy = (dy / dist) * maxRadius;
+                    }
+
+                    analogStick.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+
+                    const normX = dx / maxRadius;
+                    const normY = dy / maxRadius;
+                    touchSteer = Math.abs(normX) > 0.14 ? THREE.MathUtils.clamp(-normX, -1, 1) : 0;
+                    touchThrottle = Math.abs(normY) > 0.14 ? THREE.MathUtils.clamp(-normY, -1, 1) : 0;
+                };
+
+                const resetAnalog = () => {
+                    activeAnalogPointerId = null;
+                    analogStick.style.transform = 'translate(0px, 0px)';
+                    touchSteer = 0;
+                    touchThrottle = 0;
+                };
+
+                analogPad.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    activeAnalogPointerId = e.pointerId;
+                    if (analogPad.setPointerCapture) {
+                        try { analogPad.setPointerCapture(e.pointerId); } catch (_) {}
+                    }
+                    updateAnalogFromPoint(e.clientX, e.clientY);
+                });
+
+                analogPad.addEventListener('pointermove', (e) => {
+                    if (activeAnalogPointerId !== e.pointerId) return;
+                    e.preventDefault();
+                    updateAnalogFromPoint(e.clientX, e.clientY);
+                });
+
+                analogPad.addEventListener('pointerup', (e) => {
+                    if (activeAnalogPointerId === e.pointerId) {
+                        e.preventDefault();
+                        resetAnalog();
+                    }
+                });
+
+                analogPad.addEventListener('pointercancel', (e) => {
+                    if (activeAnalogPointerId === e.pointerId) {
+                        resetAnalog();
+                    }
+                });
+            }
         }
 
         function init() {
