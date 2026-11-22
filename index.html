@@ -1,0 +1,2772 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ROCKET WEB - 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;600;700;800&display=swap');
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050811;
+            font-family: 'Inter', sans-serif;
+            color: #f8fafc;
+        }
+
+        .font-rl {
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        #game-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .rl-menu-btn {
+            position: relative;
+            background: linear-gradient(90deg, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.72) 100%);
+            border-left: 4px solid #38bdf8;
+            transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+        }
+
+        .rl-menu-btn:hover,
+        .rl-menu-btn.active {
+            transform: translateX(8px);
+            background: linear-gradient(90deg, rgba(2, 132, 199, 0.92) 0%, rgba(30, 64, 175, 0.72) 100%);
+            border-left-color: #facc15;
+        }
+
+        .rl-play-btn {
+            background: linear-gradient(90deg, #0284c7 0%, #2563eb 65%, #38bdf8 100%);
+            border-left: 5px solid #fde047;
+            box-shadow: 0 0 24px rgba(37, 99, 235, 0.45);
+            transition: transform 0.14s ease, filter 0.14s ease;
+        }
+
+        .rl-play-btn:hover {
+            transform: translateX(8px) scale(1.01);
+            filter: brightness(1.08);
+        }
+
+        .glass-panel {
+            background: rgba(9, 14, 28, 0.86);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        .touch-btn {
+            background: rgba(15, 23, 42, 0.72);
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(6px);
+            touch-action: none;
+        }
+
+        .touch-btn:active {
+            background: rgba(14, 165, 233, 0.85);
+            transform: scale(0.94);
+        }
+    </style>
+</head>
+<body>
+    <!-- 3D Arena Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Runtime Error Fallback Banner -->
+    <div id="runtime-error-box" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[92%] glass-panel border-red-500/60 rounded-xl p-4 text-sm text-red-200 shadow-2xl">
+        <div class="font-bold text-red-400 mb-1">Aviso de Execucao</div>
+        <div id="runtime-error-msg" class="break-words text-xs text-slate-200"></div>
+    </div>
+
+    <!-- Top Match HUD -->
+    <div id="hud-top" class="hidden fixed top-0 left-0 right-0 z-20 p-3 sm:p-5 flex items-start justify-between pointer-events-none">
+        <div class="flex items-center gap-2">
+            <div class="glass-panel rounded-lg px-3 py-1.5 text-xs font-bold tracking-wider uppercase text-sky-300">
+                <span id="hud-mode-label">1V1</span>
+                <span id="hud-room-badge" class="hidden ml-2 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30"></span>
+            </div>
+            <button id="btn-pause" class="pointer-events-auto glass-panel hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-200">
+                Pausa (ESC)
+            </button>
+        </div>
+
+        <!-- Scoreboard -->
+        <div class="glass-panel rounded-xl px-4 py-2 flex items-center gap-4 shadow-xl">
+            <div class="flex items-center gap-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-sky-400">Azul</span>
+                <span id="score-blue" class="font-rl text-3xl sm:text-4xl font-bold text-white leading-none">0</span>
+            </div>
+            <div id="match-timer" class="font-rl text-xl sm:text-2xl font-bold px-3 py-1 rounded-lg bg-slate-900/90 border border-white/10 text-amber-300">
+                03:00
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="score-orange" class="font-rl text-3xl sm:text-4xl font-bold text-white leading-none">0</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-orange-400">Laranja</span>
+            </div>
+        </div>
+
+        <!-- Compact Points Toast under Scoreboard -->
+        <div id="points-toast" class="hidden fixed top-20 sm:top-24 left-1/2 -translate-x-1/2 z-20 px-3.5 py-1 rounded-full glass-panel border border-amber-400/35 text-xs font-extrabold tracking-wider uppercase text-amber-300 shadow-lg pointer-events-none">
+        </div>
+
+        <!-- Quick Match Actions -->
+        <div class="flex items-center gap-2 pointer-events-auto">
+            <button id="btn-toggle-cam" class="glass-panel hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
+                Cam Bola [F]
+            </button>
+            <button id="btn-reset-ball" class="hidden glass-panel hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-emerald-300">
+                Reset Bola [R]
+            </button>
+            <button id="btn-mute" class="glass-panel hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-200">
+                Som: ON
+            </button>
+        </div>
+    </div>
+
+    <!-- Countdown / Goal Banner -->
+    <div id="center-announcer" class="hidden fixed inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
+        <div id="announcer-main" class="font-rl text-5xl sm:text-7xl font-bold tracking-widest text-white drop-shadow-[0_6px_28px_rgba(0,0,0,0.85)]">
+            3
+        </div>
+        <div id="announcer-sub" class="mt-2 px-4 py-1 rounded-full glass-panel text-sm sm:text-base font-bold tracking-wider uppercase text-amber-300">
+        </div>
+    </div>
+
+    <!-- Bottom Speed & Boost Gauge -->
+    <div id="hud-bottom" class="hidden fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 flex items-end gap-3 pointer-events-none">
+        <div class="glass-panel rounded-xl px-3.5 py-2 text-right">
+            <div id="speed-value" class="font-rl text-3xl sm:text-4xl font-bold text-white leading-none">0</div>
+            <div class="text-[10px] font-bold tracking-widest uppercase text-slate-400">KM/H</div>
+        </div>
+
+        <div class="relative w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center">
+            <svg class="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="26" fill="rgba(9, 14, 28, 0.85)" stroke="rgba(148, 163, 184, 0.2)" stroke-width="6" />
+                <circle
+                    id="boost-ring"
+                    cx="32"
+                    cy="32"
+                    r="26"
+                    fill="none"
+                    stroke="#f97316"
+                    stroke-width="6"
+                    stroke-linecap="round"
+                    stroke-dasharray="163.36"
+                    stroke-dashoffset="0"
+                />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span id="boost-text" class="font-rl text-2xl sm:text-3xl font-bold text-amber-300 leading-none">100</span>
+                <span class="text-[9px] font-bold tracking-widest uppercase text-orange-300">BOOST</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- PC Controls Hint -->
+    <div id="pc-controls-hint" class="hidden fixed bottom-4 left-4 z-20 glass-panel rounded-xl px-3.5 py-2.5 text-[11px] text-slate-300 pointer-events-none leading-relaxed">
+        <div><strong class="text-white">W/A/S/D:</strong> Dirigir / Ar</div>
+        <div><strong class="text-white">Espaco:</strong> Pular / Flip Duplo</div>
+        <div><strong class="text-white">Shift / Clique Esq:</strong> Boost</div>
+        <div><strong class="text-white">E / Ctrl:</strong> Drift | <strong class="text-white">F:</strong> Cam Bola</div>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div id="mobile-controls" class="hidden fixed inset-x-0 bottom-4 z-20 px-4 flex items-end justify-between pointer-events-none">
+        <div class="flex flex-col gap-2 pointer-events-auto">
+            <button id="touch-up" class="touch-btn w-14 h-14 rounded-2xl font-rl text-xl font-bold">W</button>
+            <div class="flex gap-2">
+                <button id="touch-left" class="touch-btn w-14 h-14 rounded-2xl font-rl text-xl font-bold">A</button>
+                <button id="touch-down" class="touch-btn w-14 h-14 rounded-2xl font-rl text-xl font-bold">S</button>
+                <button id="touch-right" class="touch-btn w-14 h-14 rounded-2xl font-rl text-xl font-bold">D</button>
+            </div>
+        </div>
+        <div class="flex gap-2.5 pointer-events-auto">
+            <button id="touch-drift" class="touch-btn px-3.5 h-14 rounded-2xl text-xs font-extrabold uppercase text-sky-300">Drift</button>
+            <button id="touch-boost" class="touch-btn px-4 h-14 rounded-2xl text-xs font-extrabold uppercase text-amber-300">Boost</button>
+            <button id="touch-jump" class="touch-btn px-4 h-14 rounded-2xl text-xs font-extrabold uppercase text-emerald-300">Pular</button>
+        </div>
+    </div>
+
+    <!-- Main Menu (Rocket League Style Layout) -->
+    <div id="main-menu" class="fixed inset-0 z-30 flex flex-col justify-between p-4 sm:p-8 bg-gradient-to-r from-slate-950/90 via-slate-950/45 to-slate-950/75">
+        <!-- Top Bar -->
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-bold uppercase tracking-widest">
+                    Temporada 01 • Arena 3D
+                </div>
+                <h1 class="font-rl text-5xl sm:text-7xl font-bold tracking-wider uppercase text-white drop-shadow-[0_4px_20px_rgba(14,165,233,0.45)] leading-none mt-1">
+                    ROCKET <span class="text-sky-400">WEB</span>
+                </h1>
+                <div class="text-xs text-slate-300 mt-1">
+                    Criado por <span class="font-bold text-pink-400">@enzoxd_244</span> no TikTok
+                </div>
+            </div>
+
+            <!-- Right NEWS Tab -->
+            <button id="btn-news-tab" class="glass-panel hover:bg-slate-800/90 rounded-l-xl sm:rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-amber-300 shadow-lg">
+                <span>NEWS</span>
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            </button>
+        </div>
+
+        <!-- Left Vertical Action List -->
+        <div class="my-auto max-w-sm w-full flex flex-col gap-2.5">
+            <button id="btn-menu-play" class="rl-play-btn w-full text-left px-5 py-3.5 rounded-r-xl font-rl text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white flex items-center justify-between">
+                <span>PLAY</span>
+                <span class="text-xs font-sans font-bold px-2.5 py-0.5 rounded bg-black/30 text-yellow-200" id="menu-mode-badge">1V1</span>
+            </button>
+
+            <button id="btn-menu-garage" class="rl-menu-btn w-full text-left px-5 py-3 rounded-r-xl font-rl text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-100 flex items-center justify-between">
+                <span>GARAGE / BOLA</span>
+                <span class="text-xs font-sans text-sky-300" id="menu-ball-label">Carbono</span>
+            </button>
+
+            <button id="btn-menu-shop" class="rl-menu-btn w-full text-left px-5 py-3 rounded-r-xl font-rl text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-100 flex items-center justify-between">
+                <span>LOJA</span>
+                <span class="text-xs font-sans font-extrabold text-amber-300" id="menu-points-badge">0 PTS</span>
+            </button>
+
+            <button id="btn-menu-rooms" class="rl-menu-btn w-full text-left px-5 py-3 rounded-r-xl font-rl text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-100 flex items-center justify-between">
+                <span>SALAS</span>
+                <span class="text-xs font-sans text-amber-300" id="menu-rooms-badge">AVULSO</span>
+            </button>
+
+            <button id="btn-menu-profile" class="rl-menu-btn w-full text-left px-5 py-3 rounded-r-xl font-rl text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-100 flex items-center justify-between">
+                <span>PROFILE</span>
+                <span class="text-xs font-sans text-emerald-300" id="menu-platform-label">PC</span>
+            </button>
+
+            <button id="btn-menu-options" class="rl-menu-btn w-full text-left px-5 py-3 rounded-r-xl font-rl text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-100 flex items-center justify-between">
+                <span>OPTIONS</span>
+                <span class="text-xs font-sans text-amber-300">GRAFICOS</span>
+            </button>
+        </div>
+
+        <!-- Bottom Bar: Player Card + Quick Status -->
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div class="glass-panel rounded-xl px-4 py-2.5 flex items-center gap-3.5 border-l-4 border-l-sky-400">
+                <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-700 flex items-center justify-center font-rl text-xl font-bold text-white shadow">
+                    RW
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span id="hud-player-nick" class="font-bold text-sm sm:text-base text-white">Jogador</span>
+                        <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-300/30">
+                            LVL 24
+                        </span>
+                        <span id="hud-player-points" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 border border-emerald-300/30">
+                            0 PTS
+                        </span>
+                    </div>
+                    <div class="text-[11px] text-slate-300 mt-0.5">
+                        Mapa: <strong id="menu-map-name" class="text-sky-300">Cyber Arena</strong> •
+                        Bot: <strong id="menu-bot-status" class="text-emerald-300">Ativado</strong> •
+                        <span id="menu-room-status" class="text-amber-300">Sem Sala</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-xl px-4 py-2 text-xs text-slate-300 flex items-center gap-3">
+                <span>TikTok: <strong class="text-pink-400">@enzoxd_244</strong></span>
+                <span>•</span>
+                <span class="text-emerald-400 font-semibold">Pronto para jogar</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Play Setup Modal (Mode, Bot, Map, Room, Start) -->
+    <div id="modal-play" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-sky-400">CONFIGURAR PARTIDA</h2>
+                <button data-close="modal-play" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold">FECHAR</button>
+            </div>
+
+            <!-- Mode & Bot -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Seu Nick na Partida</label>
+                    <input id="input-quick-nick" type="text" maxlength="16" placeholder="Digite seu nick..." class="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Modo de Jogo</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="mode-1v1" class="py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400">Partida 1v1</button>
+                        <button id="mode-training" class="py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Modo Treino</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bot & Difficulty -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Bot Oponente</label>
+                <div class="flex gap-2">
+                    <button id="btn-toggle-bot" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-emerald-600 text-white border border-emerald-400">
+                        Bot: ATIVADO
+                    </button>
+                    <select id="select-difficulty" class="bg-slate-800 border border-white/15 rounded-xl px-2.5 text-xs font-bold text-slate-200">
+                        <option value="easy">Facil</option>
+                        <option value="medium" selected>Medio</option>
+                        <option value="hard">Dificil</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Map Selection -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Selecionar Mapa</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <button data-map="cyber" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400">Cyber Arena</button>
+                    <button data-map="solar" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Solar Flare</button>
+                    <button data-map="neon" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Neon Grid</button>
+                    <button data-map="sky" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Sky Stadium</button>
+                    <button data-map="oasis" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Oasis Cup</button>
+                </div>
+            </div>
+
+            <button id="btn-start-match" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:brightness-110 font-rl text-2xl font-bold uppercase tracking-wider text-white shadow-lg">
+                INICIAR PARTIDA
+            </button>
+        </div>
+    </div>
+
+    <!-- Separate Rooms Menu Modal -->
+    <div id="modal-rooms" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-amber-300">MENU DE SALAS</h2>
+                <button data-close="modal-rooms" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold">FECHAR</button>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-white/10 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-amber-300">Salas por Codigo</span>
+                    <span id="room-code-badge" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-sky-300">NENHUMA</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button id="btn-create-room" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-extrabold uppercase text-white">
+                        + Criar Sala
+                    </button>
+                    <input id="input-room-code" type="text" maxlength="6" placeholder="CODIGO" class="flex-1 min-w-[110px] bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs font-mono uppercase text-white" />
+                    <button id="btn-join-room" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-extrabold uppercase text-white">
+                        Entrar
+                    </button>
+                </div>
+                <div id="room-feedback" class="text-xs text-sky-300"></div>
+                <button id="btn-leave-room" class="hidden w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold uppercase text-slate-200">
+                    Sair da Sala (Jogar sem Sala)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal (Nick, Rainbow Nick, PC or Mobile) -->
+    <div id="modal-profile" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-emerald-400">PERFIL DO JOGADOR</h2>
+                <button data-close="modal-profile" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold">FECHAR</button>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Seu Nick (aparece acima do carro)</label>
+                <input id="input-nick" type="text" maxlength="16" value="Jogador" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white" />
+            </div>
+
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                <div>
+                    <div class="text-xs font-extrabold uppercase text-white">Nick Rainbow</div>
+                    <div class="text-[11px] text-slate-400">Efeito arco-iris animado no nome</div>
+                </div>
+                <button id="btn-toggle-rainbow" class="px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950">
+                    ATIVADO
+                </button>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Voce joga no PC ou Mobile?</label>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button id="platform-pc" class="py-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400">
+                        PC (Teclado)
+                    </button>
+                    <button id="platform-mobile" class="py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">
+                        Mobile (Touch)
+                    </button>
+                </div>
+            </div>
+
+            <button id="btn-save-profile" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-rl text-xl font-bold uppercase tracking-wider text-white">
+                SALVAR PERFIL
+            </button>
+        </div>
+    </div>
+
+    <!-- Garage / Ball Customizer Modal -->
+    <div id="modal-garage" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-sky-400">IMAGEM DA BOLA</h2>
+                <button data-close="modal-garage" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold">FECHAR</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <button data-ball-style="carbon" class="ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400">Carbono Cyber</button>
+                <button data-ball-style="plasma" class="ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Plasma Azul</button>
+                <button data-ball-style="magma" class="ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Magma Solar</button>
+                <button data-ball-style="enzo" class="ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-pink-300 border border-pink-500/30">@enzoxd_244</button>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-white/10 space-y-2">
+                <label class="block text-xs font-bold uppercase text-slate-300">Enviar Imagem Propria</label>
+                <input id="input-ball-image" type="file" accept="image/png,image/jpeg,image/webp" class="w-full text-xs text-slate-300" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Shop Modal (Goal Effects, Cars, Speed Effects) -->
+    <div id="modal-shop" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <!-- Shop Modal (Goal Effects, Cars, Speed Effects) -->
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                    <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-amber-300">LOJA DE ITENS</h2>
+                    <div class="text-xs text-slate-300">Gol: +100 pts • Trick (720°/Flip): +200 pts • Chute Forte/Boost: +50 pts</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="shop-points-display" class="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-extrabold">
+                        0 PTS
+                    </span>
+                    <button data-close="modal-shop" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold">FECHAR</button>
+                </div>
+            </div>
+
+            <div id="shop-feedback" class="text-xs font-semibold text-sky-300 min-h-[16px]"></div>
+
+            <!-- Cars Section -->
+            <div class="space-y-2">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-sky-300">Carros</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    <button data-shop-cat="car" data-shop-id="octane_blue" data-price="0" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Octane Cyber</div>
+                        <div class="text-[11px] text-slate-400">Azul & Ouro</div>
+                        <div class="text-xs font-bold text-emerald-300" data-shop-status="car:octane_blue">EQUIPADO</div>
+                    </button>
+                    <button data-shop-cat="car" data-shop-id="phantom_emerald" data-price="650" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Phantom Viper</div>
+                        <div class="text-[11px] text-slate-400">Esmeralda Neon</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="car:phantom_emerald">650 PTS</div>
+                    </button>
+                    <button data-shop-cat="car" data-shop-id="nova_crimson" data-price="1200" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Nova Crimson</div>
+                        <div class="text-[11px] text-slate-400">Carmesim & Rosa</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="car:nova_crimson">1200 PTS</div>
+                    </button>
+                    <button data-shop-cat="car" data-shop-id="titan_gold" data-price="2000" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Titan Royal</div>
+                        <div class="text-[11px] text-slate-400">Ouro & Violeta</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="car:titan_gold">2000 PTS</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Goal Effects Section -->
+            <div class="space-y-2">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-amber-300">Efeitos de Gol</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    <button data-shop-cat="goal" data-shop-id="neon_burst" data-price="0" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Explosao Neon</div>
+                        <div class="text-[11px] text-slate-400">Cubos brilhantes</div>
+                        <div class="text-xs font-bold text-emerald-300" data-shop-status="goal:neon_burst">EQUIPADO</div>
+                    </button>
+                    <button data-shop-cat="goal" data-shop-id="solar_nova" data-price="750" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Solar Nova</div>
+                        <div class="text-[11px] text-slate-400">Chamas douradas</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="goal:solar_nova">750 PTS</div>
+                    </button>
+                    <button data-shop-cat="goal" data-shop-id="hyper_galaxy" data-price="1350" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Hyper Galaxia</div>
+                        <div class="text-[11px] text-slate-400">Pulso violeta e ciano</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="goal:hyper_galaxy">1350 PTS</div>
+                    </button>
+                    <button data-shop-cat="goal" data-shop-id="emerald_rift" data-price="2100" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Fenda Esmeralda</div>
+                        <div class="text-[11px] text-slate-400">Choque verde e ouro</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="goal:emerald_rift">2100 PTS</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Speed Effects Section -->
+            <div class="space-y-2">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-emerald-300">Efeitos de Velocidade</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    <button data-shop-cat="speed" data-shop-id="flame_classic" data-price="0" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Chama Classica</div>
+                        <div class="text-[11px] text-slate-400">Laranja turbo</div>
+                        <div class="text-xs font-bold text-emerald-300" data-shop-status="speed:flame_classic">EQUIPADO</div>
+                    </button>
+                    <button data-shop-cat="speed" data-shop-id="lightning_arc" data-price="600" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Raio Ciano</div>
+                        <div class="text-[11px] text-slate-400">Jato eletrico azul</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="speed:lightning_arc">600 PTS</div>
+                    </button>
+                    <button data-shop-cat="speed" data-shop-id="plasma_pink" data-price="1150" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Plasma Magenta</div>
+                        <div class="text-[11px] text-slate-400">Rastro rosa hiper</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="speed:plasma_pink">1150 PTS</div>
+                    </button>
+                    <button data-shop-cat="speed" data-shop-id="void_volt" data-price="1850" class="shop-item-btn p-3 rounded-xl bg-slate-900/90 border border-white/15 text-left space-y-1">
+                        <div class="text-xs font-extrabold uppercase text-white">Void Volt</div>
+                        <div class="text-[11px] text-slate-400">Rastro dourado & roxo</div>
+                        <div class="text-xs font-bold text-amber-300" data-shop-status="speed:void_volt">1850 PTS</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphics Options Modal -->
+    <div id="modal-options" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-amber-300">GRAFICOS</h2>
+                <button data-close="modal-options" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold">FECHAR</button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+                <button id="preset-low" class="py-2 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-200 border border-white/10">Baixo</button>
+                <button id="preset-medium" class="py-2 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-200 border border-white/10">Medio</button>
+                <button id="preset-ultra" class="py-2 rounded-xl text-xs font-extrabold uppercase bg-amber-600 text-white border border-amber-400">Ultra</button>
+            </div>
+
+            <div class="space-y-2 text-xs">
+                <button id="toggle-textures" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                    <span class="font-bold uppercase">Texturas do Campo e Bola</span>
+                    <span id="state-textures" class="font-extrabold text-emerald-400">ATIVADO</span>
+                </button>
+                <button id="toggle-shadows" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                    <span class="font-bold uppercase">Sombras Dinamicas</span>
+                    <span id="state-shadows" class="font-extrabold text-emerald-400">ATIVADO</span>
+                </button>
+                <button id="toggle-dome" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                    <span class="font-bold uppercase">Domo e Cenario Externo</span>
+                    <span id="state-dome" class="font-extrabold text-emerald-400">ATIVADO</span>
+                </button>
+                <button id="toggle-particles" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                    <span class="font-bold uppercase">Particulas de Gol</span>
+                    <span id="state-particles" class="font-extrabold text-emerald-400">ATIVADO</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="modal-pause" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-3 text-center">
+            <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-white">JOGO PAUSADO</h2>
+            <button id="btn-resume" class="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 font-bold uppercase text-xs">Continuar</button>
+            <button id="btn-restart-match" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold uppercase text-xs">Reiniciar Partida</button>
+            <button id="btn-exit-menu" class="w-full py-3 rounded-xl bg-rose-600/80 hover:bg-rose-600 font-bold uppercase text-xs">Voltar ao Menu</button>
+        </div>
+    </div>
+
+    <!-- End of Match Modal -->
+    <div id="modal-gameover" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-center">
+            <div id="gameover-title" class="font-rl text-4xl font-bold uppercase tracking-wider text-amber-300">FIM DE JOGO</div>
+            <div id="gameover-score" class="font-rl text-3xl font-bold text-white">Azul 0 - 0 Laranja</div>
+            <div class="flex gap-2.5">
+                <button id="btn-play-again" class="flex-1 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 font-bold uppercase text-xs">Jogar Novamente</button>
+                <button id="btn-gameover-menu" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold uppercase text-xs">Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show runtime errors cleanly instead of silent failure
+        window.addEventListener('error', (event) => {
+            const box = document.getElementById('runtime-error-box');
+            const msg = document.getElementById('runtime-error-msg');
+            if (box && msg) {
+                box.classList.remove('hidden');
+                msg.textContent = event.message || 'Erro desconhecido ao executar o jogo.';
+            }
+        });
+
+        // Arena & Physics Constants
+        const ARENA = {
+            WIDTH: 140,
+            LENGTH: 220,
+            HEIGHT: 52,
+            GOAL_WIDTH: 38,
+            GOAL_HEIGHT: 15,
+            GOAL_DEPTH: 14
+        };
+
+        const MAP_THEMES = {
+            cyber: {
+                label: 'Cyber Tarde',
+                bg: 0x3b2c44,
+                fog: 0x4b3652,
+                floorBase: '#272233',
+                floorStripe: '#312a40',
+                floorSolid: 0x2c263a,
+                wallHex: 'rgba(251, 146, 60, 0.24)',
+                wallTint: 0xfb923c,
+                blueLight: 0x38bdf8,
+                orangeLight: 0xf97316
+            },
+            solar: {
+                label: 'Solar Tarde',
+                bg: 0x47282b,
+                fog: 0x593234,
+                floorBase: '#2e1d20',
+                floorStripe: '#3a2428',
+                floorSolid: 0x342024,
+                wallHex: 'rgba(251, 191, 36, 0.24)',
+                wallTint: 0xfbbf24,
+                blueLight: 0x38bdf8,
+                orangeLight: 0xf97316
+            },
+            neon: {
+                label: 'Neon Crepusculo',
+                bg: 0x352547,
+                fog: 0x432e59,
+                floorBase: '#241c33',
+                floorStripe: '#2e2440',
+                floorSolid: 0x29203a,
+                wallHex: 'rgba(244, 114, 182, 0.25)',
+                wallTint: 0xf472b6,
+                blueLight: 0x22d3ee,
+                orangeLight: 0xf472b6
+            },
+            sky: {
+                label: 'Sky Entardecer',
+                bg: 0x2f3b52,
+                fog: 0x3b4a66,
+                floorBase: '#202938',
+                floorStripe: '#283447',
+                floorSolid: 0x242e3f,
+                wallHex: 'rgba(253, 186, 116, 0.24)',
+                wallTint: 0xfdba74,
+                blueLight: 0x38bdf8,
+                orangeLight: 0xfb923c
+            },
+            oasis: {
+                label: 'Oasis Tarde',
+                bg: 0x2b3d47,
+                fog: 0x364d59,
+                floorBase: '#1d2b30',
+                floorStripe: '#25363d',
+                floorSolid: 0x213036,
+                wallHex: 'rgba(251, 191, 36, 0.22)',
+                wallTint: 0xfbbf24,
+                blueLight: 0x38bdf8,
+                orangeLight: 0xf59e0b
+            }
+        };
+
+        const PHYSICS = {
+            GRAVITY: -38,
+            BALL_RADIUS: 4.2,
+            BALL_RESTITUTION: 0.78,
+            BALL_DRAG: 0.996,
+            CAR_MAX_SPEED: 54,
+            CAR_BOOST_SPEED: 76,
+            CAR_ACCEL: 86,
+            CAR_BOOST_ACCEL: 128,
+            CAR_TURN_SPEED: 2.7,
+            CAR_DRIFT_TURN: 4.1,
+            JUMP_IMPULSE: 23,
+            DODGE_IMPULSE: 32
+        };
+
+        // Game & Player State
+        let scene, camera, renderer, clock;
+        let gameState = 'MENU';
+        let gameMode = '1v1';
+        let selectedMap = 'cyber';
+        let activeRoomCode = null;
+        let hasBot = true;
+        let difficulty = 'medium';
+        let platform = 'pc';
+        let playerNick = 'Jogador';
+        let rainbowNick = true;
+        let isBallCam = true;
+        let isMuted = false;
+        let activeBallStyle = 'carbon';
+        let customBallTextureRef = null;
+
+        // Points & Shop State
+        let playerPoints = 0;
+        let ownedItems = {
+            car: ['octane_blue'],
+            goal: ['neon_burst'],
+            speed: ['flame_classic']
+        };
+        let equippedItems = {
+            car: 'octane_blue',
+            goal: 'neon_burst',
+            speed: 'flame_classic'
+        };
+        let trickSpinAccum = 0;
+        let lastBallTouchTime = 0;
+
+        const CAR_SKINS = {
+            octane_blue: { body: 0x0284c7, accent: 0xfacc15 },
+            phantom_emerald: { body: 0x059669, accent: 0x34d399 },
+            nova_crimson: { body: 0xdc2626, accent: 0xf472b6 },
+            titan_gold: { body: 0x7c3aed, accent: 0xfacc15 }
+        };
+
+        const SPEED_EFFECTS = {
+            flame_classic: { color: 0xf97316, scale: 1.0 },
+            lightning_arc: { color: 0x38bdf8, scale: 1.25 },
+            plasma_pink: { color: 0xec4899, scale: 1.4 },
+            void_volt: { color: 0xfacc15, scale: 1.5 }
+        };
+
+        const GOAL_EFFECTS = {
+            neon_burst: { primary: 0x00d4ff, secondary: 0xff6600, accent: 0xfbbf24, count: 45 },
+            solar_nova: { primary: 0xfacc15, secondary: 0xf97316, accent: 0xef4444, count: 65 },
+            hyper_galaxy: { primary: 0xa855f7, secondary: 0x22d3ee, accent: 0xf472b6, count: 75 },
+            emerald_rift: { primary: 0x10b981, secondary: 0x34d399, accent: 0xfacc15, count: 80 }
+        };
+
+        const graphicsSettings = {
+            textures: true,
+            shadows: false,
+            domeAndSkyline: true,
+            particles: false
+        };
+
+        let floorMesh, wallMatRef, domeGroup, skylineGroup;
+        let turfTextureRef, hexDomeTextureRef, ballTextureRef;
+        let playerCar, botCar, ball, ballTargetRing, playerNickSprite;
+        let boostPads = [];
+        let goalParticles = [];
+        let scoreBlue = 0;
+        let scoreOrange = 0;
+        let matchTimeRemaining = 180;
+        let isOvertime = false;
+        let matchTimerInterval = null;
+        let slowMoTimer = 0;
+
+        const keys = {};
+        let mouseBoostHeld = false;
+        let touchJumpPressed = false;
+        let touchBoostPressed = false;
+        let touchDriftPressed = false;
+        let touchSteer = 0;
+        let touchThrottle = 0;
+
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+            }
+            ensureCtx() {
+                if (isMuted) return null;
+                try {
+                    if (!this.ctx) {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (AudioCtx) this.ctx = new AudioCtx();
+                    }
+                    if (this.ctx && this.ctx.state === 'suspended') {
+                        this.ctx.resume();
+                    }
+                    return this.ctx;
+                } catch (_) {
+                    return null;
+                }
+            }
+            playTone(freq, duration, type = 'sine', volume = 0.08) {
+                const ctx = this.ensureCtx();
+                if (!ctx) return;
+                try {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    gain.gain.setValueAtTime(volume, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + duration);
+                } catch (_) {}
+            }
+            playJump() { this.playTone(260, 0.14, 'triangle', 0.09); }
+            playBallHit(intensity = 1) {
+                const vol = Math.min(0.18, 0.05 * intensity);
+                this.playTone(130 + 60 * intensity, 0.11, 'sawtooth', vol);
+            }
+            playBoostPad(big = false) { this.playTone(big ? 520 : 380, big ? 0.22 : 0.12, 'sine', 0.08); }
+            playBeep(finalGo = false) { this.playTone(finalGo ? 880 : 440, finalGo ? 0.28 : 0.14, 'square', 0.06); }
+            playGoal() {
+                this.playTone(110, 0.55, 'sawtooth', 0.14);
+                setTimeout(() => this.playTone(220, 0.45, 'triangle', 0.12), 90);
+            }
+        }
+        const sound = new SoundEngine();
+
+        function clearInputs() {
+            Object.keys(keys).forEach(k => { keys[k] = false; });
+            mouseBoostHeld = false;
+            touchJumpPressed = false;
+            touchBoostPressed = false;
+            touchDriftPressed = false;
+            touchSteer = 0;
+            touchThrottle = 0;
+            trickSpinAccum = 0;
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+        }
+
+        function hasActiveBot() {
+            return Boolean(hasBot && botCar && gameMode !== 'training');
+        }
+
+        function getPlayerControl() {
+            if (platform === 'mobile') {
+                return {
+                    throttle: touchThrottle,
+                    steer: touchSteer,
+                    boosting: touchBoostPressed,
+                    drifting: touchDriftPressed
+                };
+            }
+            let throttle = 0;
+            if (keys['KeyW'] || keys['ArrowUp']) throttle += 1;
+            if (keys['KeyS'] || keys['ArrowDown']) throttle -= 1;
+
+            let steer = 0;
+            if (keys['KeyA'] || keys['ArrowLeft']) steer += 1;
+            if (keys['KeyD'] || keys['ArrowRight']) steer -= 1;
+
+            const boosting = Boolean(keys['ShiftLeft'] || keys['ShiftRight'] || mouseBoostHeld);
+            const drifting = Boolean(keys['KeyE'] || keys['ControlLeft'] || keys['ControlRight']);
+            return { throttle, steer, boosting, drifting };
+        }
+
+        function updateBotAI(dt) {
+            if (!hasActiveBot() || !botCar || !ball) return;
+            const toBallX = ball.pos.x - botCar.pos.x;
+            const toBallZ = ball.pos.z - botCar.pos.z;
+            const desiredYaw = Math.atan2(-toBallX, -toBallZ);
+
+            let yawDiff = desiredYaw - botCar.yaw;
+            while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+            while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+
+            const turnScale = difficulty === 'easy' ? 1.4 : difficulty === 'hard' ? 2.8 : 2.1;
+            const speedTarget = difficulty === 'easy' ? 0.65 : difficulty === 'hard' ? 1.0 : 0.85;
+            const steer = THREE.MathUtils.clamp(yawDiff * turnScale, -1, 1);
+            const boosting = Math.abs(yawDiff) < 0.25 && Math.hypot(toBallX, toBallZ) > 22 && botCar.boost > 15;
+
+            updateCarPhysics(botCar, {
+                throttle: speedTarget,
+                steer,
+                boosting,
+                drifting: Math.abs(yawDiff) > 1.15
+            }, dt);
+        }
+
+        function updateBallAndCollisions(dt) {
+            if (!ball) return;
+            const r = PHYSICS.BALL_RADIUS;
+            const ceilingBallY = ARENA.HEIGHT - r;
+            const nearCeiling = ball.pos.y >= ceilingBallY - 0.5;
+            const ballHorizSpeed = Math.hypot(ball.vel.x, ball.vel.z);
+
+            if (nearCeiling && ballHorizSpeed > 14 && ball.vel.y > -1.5) {
+                ball.vel.y = Math.max(ball.vel.y, 0);
+            } else {
+                ball.vel.y += PHYSICS.GRAVITY * 1.15 * dt;
+            }
+
+            ball.pos.addScaledVector(ball.vel, dt);
+            ball.vel.multiplyScalar(Math.pow(PHYSICS.BALL_DRAG, dt * 60));
+
+            if (ball.pos.y < r) {
+                ball.pos.y = r;
+                if (ball.vel.y < 0) ball.vel.y = -ball.vel.y * PHYSICS.BALL_RESTITUTION;
+                ball.vel.x *= 0.985;
+                ball.vel.z *= 0.985;
+            } else if (ball.pos.y > ceilingBallY) {
+                ball.pos.y = ceilingBallY;
+                if (ball.vel.y > 0) {
+                    ball.vel.y = ballHorizSpeed > 14 ? 0 : -Math.abs(ball.vel.y) * 0.45;
+                }
+                ball.vel.x *= 0.985;
+                ball.vel.z *= 0.985;
+            }
+
+            ball.pos.addScaledVector(ball.vel, dt);
+            ball.vel.multiplyScalar(Math.pow(PHYSICS.BALL_DRAG, dt * 60));
+
+            if (ball.pos.y < r) {
+                ball.pos.y = r;
+                if (ball.vel.y < 0) ball.vel.y = -ball.vel.y * PHYSICS.BALL_RESTITUTION;
+                ball.vel.x *= 0.985;
+                ball.vel.z *= 0.985;
+            } else if (ball.pos.y > ceilingBallY) {
+                ball.pos.y = ceilingBallY;
+                if (ball.vel.y > 0) ball.vel.y = Math.max(0, ball.vel.y * 0.55);
+                ball.vel.x *= 0.992;
+                ball.vel.z *= 0.992;
+            }
+
+            const wallX = ARENA.WIDTH / 2 - r;
+            if (ball.pos.x < -wallX) {
+                ball.pos.x = -wallX;
+                ball.vel.x = Math.abs(ball.vel.x) * PHYSICS.BALL_RESTITUTION;
+            } else if (ball.pos.x > wallX) {
+                ball.pos.x = wallX;
+                ball.vel.x = -Math.abs(ball.vel.x) * PHYSICS.BALL_RESTITUTION;
+            }
+
+            const wallZ = ARENA.LENGTH / 2 - r;
+            const insideGoalWidth = Math.abs(ball.pos.x) < ARENA.GOAL_WIDTH / 2 - r * 0.4;
+            const insideGoalHeight = ball.pos.y < ARENA.GOAL_HEIGHT - r * 0.35;
+
+            if (ball.pos.z < -wallZ) {
+                if (!(insideGoalWidth && insideGoalHeight)) {
+                    ball.pos.z = -wallZ;
+                    ball.vel.z = Math.abs(ball.vel.z) * PHYSICS.BALL_RESTITUTION;
+                }
+            } else if (ball.pos.z > wallZ) {
+                if (!(insideGoalWidth && insideGoalHeight)) {
+                    ball.pos.z = wallZ;
+                    ball.vel.z = -Math.abs(ball.vel.z) * PHYSICS.BALL_RESTITUTION;
+                }
+            }
+
+            if (ballTargetRing) {
+                ballTargetRing.position.set(ball.pos.x, 0.08, ball.pos.z);
+            }
+
+            if (ball.pos.z < -ARENA.LENGTH / 2 - r * 0.5) {
+                handleGoalScored('orange');
+            } else if (ball.pos.z > ARENA.LENGTH / 2 + r * 0.5) {
+                handleGoalScored('blue');
+            }
+
+            const activeCars = hasActiveBot() ? [playerCar, botCar] : [playerCar];
+            activeCars.forEach(car => {
+                if (!car) return;
+                const carCenter = new THREE.Vector3(car.pos.x, car.pos.y + 1.4, car.pos.z);
+                const diff = new THREE.Vector3().subVectors(ball.pos, carCenter);
+                const dist = diff.length();
+                const minDist = PHYSICS.BALL_RADIUS + 2.6;
+
+                if (dist < minDist && dist > 0.0001) {
+                    const normal = diff.clone().normalize();
+                    const overlap = minDist - dist;
+                    ball.pos.addScaledVector(normal, overlap);
+
+                    const relVel = new THREE.Vector3().subVectors(ball.vel, car.vel);
+                    const sepVel = relVel.dot(normal);
+                    if (sepVel < 0) {
+                        const hitPower = car.flipTimer > 0 ? 1.55 : 1.25;
+                        const impulse = -(1 + PHYSICS.BALL_RESTITUTION) * sepVel * hitPower;
+                        ball.vel.addScaledVector(normal, impulse);
+                        ball.vel.addScaledVector(car.vel, 0.35);
+                        ball.vel.y = Math.max(ball.vel.y, 7.5);
+                        sound.playBallHit(Math.min(1.5, Math.abs(sepVel) / 35));
+
+                        const now = performance.now();
+                        if (car.isPlayer && gameState === 'PLAYING' && Math.abs(sepVel) > 26 && now - lastBallTouchTime > 3200) {
+                            lastBallTouchTime = now;
+                            awardPoints(50, 'CHUTE FORTE');
+                        }
+                    }
+                }
+            });
+
+            boostPads.forEach(pad => {
+                pad.orb.rotation.y += 2.2 * dt;
+                if (!pad.active) {
+                    pad.respawnTimer -= dt;
+                    if (pad.respawnTimer <= 0) {
+                        pad.active = true;
+                        pad.orb.visible = true;
+                    }
+                    return;
+                }
+                activeCars.forEach(car => {
+                    if (!car) return;
+                    const d = Math.hypot(car.pos.x - pad.x, car.pos.z - pad.z);
+                    if (d < (pad.big ? 4.5 : 3.2) && car.pos.y < 3.5 && car.boost < 100) {
+                        car.boost = Math.min(100, car.boost + (pad.big ? 100 : 15));
+                        pad.active = false;
+                        pad.orb.visible = false;
+                        pad.respawnTimer = pad.big ? 12 : 5;
+                        if (car.isPlayer) {
+                            sound.playBoostPad(pad.big);
+                            if (pad.big && gameState === 'PLAYING' && Math.hypot(car.vel.x, car.vel.z) > 38) {
+                                awardPoints(50, 'BOOST RÁPIDO');
+                            }
+                        }
+                    }
+                });
+            });
+
+            ball.mesh.position.copy(ball.pos);
+            ball.mesh.rotation.x += ball.vel.z * dt * 0.14;
+            ball.mesh.rotation.z -= ball.vel.x * dt * 0.14;
+        }
+
+        function awardPoints(amount, reasonLabel = '') {
+            if (!amount || amount <= 0) return;
+            playerPoints += amount;
+            updatePointsHUD();
+            if (reasonLabel) {
+                const toastEl = document.getElementById('points-toast');
+                if (toastEl && gameState === 'PLAYING') {
+                    toastEl.textContent = `+${amount} PTS • ${reasonLabel}`;
+                    toastEl.classList.remove('hidden');
+                    clearTimeout(window.__ptsToastTimer);
+                    window.__ptsToastTimer = setTimeout(() => {
+                        toastEl.classList.add('hidden');
+                    }, 1150);
+                }
+            }
+        }
+
+        function updatePointsHUD() {
+            const ptsStr = `${playerPoints} PTS`;
+            const hudPts = document.getElementById('hud-player-points');
+            const menuPts = document.getElementById('menu-points-badge');
+            const shopPts = document.getElementById('shop-points-display');
+            if (hudPts) hudPts.textContent = ptsStr;
+            if (menuPts) menuPts.textContent = ptsStr;
+            if (shopPts) shopPts.textContent = ptsStr;
+            refreshShopUI();
+        }
+
+        function applyEquippedVisuals() {
+            const carSkin = CAR_SKINS[equippedItems.car] || CAR_SKINS.octane_blue;
+            if (playerCar && playerCar.bodyMat && playerCar.accentMat && playerCar.hubMat) {
+                playerCar.bodyMat.color.setHex(carSkin.body);
+                playerCar.accentMat.color.setHex(carSkin.accent);
+                playerCar.hubMat.color.setHex(carSkin.accent);
+            }
+
+            const speedFx = SPEED_EFFECTS[equippedItems.speed] || SPEED_EFFECTS.flame_classic;
+            if (playerCar && playerCar.boostFlame) {
+                playerCar.boostFlame.material.color.setHex(speedFx.color);
+                playerCar.boostFlame.scale.set(speedFx.scale, speedFx.scale, speedFx.scale);
+            }
+        }
+
+        function refreshShopUI() {
+            document.querySelectorAll('[data-shop-status]').forEach(el => {
+                const key = el.getAttribute('data-shop-status') || '';
+                const [cat, id] = key.split(':');
+                const btn = el.closest('.shop-item-btn');
+                const price = Number(btn ? btn.getAttribute('data-price') || 0 : 0);
+                const isEquipped = equippedItems[cat] === id;
+                const isOwned = Array.isArray(ownedItems[cat]) && ownedItems[cat].includes(id);
+
+                if (isEquipped) {
+                    el.textContent = 'EQUIPADO';
+                    el.className = 'text-xs font-bold text-emerald-300';
+                } else if (isOwned) {
+                    el.textContent = 'EQUIPAR';
+                    el.className = 'text-xs font-bold text-sky-300';
+                } else {
+                    el.textContent = `${price} PTS`;
+                    el.className = playerPoints >= price
+                        ? 'text-xs font-bold text-amber-300'
+                        : 'text-xs font-bold text-rose-400';
+                }
+            });
+        }
+
+        function createTurfTexture(theme) {
+            const c = document.createElement('canvas');
+            c.width = 512;
+            c.height = 512;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = theme.floorBase;
+            ctx.fillRect(0, 0, 512, 512);
+
+            ctx.fillStyle = theme.floorStripe;
+            for (let y = 0; y < 512; y += 64) {
+                ctx.fillRect(0, y, 512, 32);
+            }
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(8, 8, 496, 496);
+            ctx.beginPath();
+            ctx.moveTo(0, 256);
+            ctx.lineTo(512, 256);
+            ctx.stroke();
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(3, 5);
+            return tex;
+        }
+
+        function createFieldLinesGroup(theme) {
+            const group = new THREE.Group();
+            const lineMat = new THREE.MeshBasicMaterial({
+                color: 0xe2e8f0,
+                transparent: true,
+                opacity: 0.34,
+                side: THREE.DoubleSide
+            });
+            const accentMat = new THREE.MeshBasicMaterial({
+                color: theme.wallTint,
+                transparent: true,
+                opacity: 0.35,
+                side: THREE.DoubleSide
+            });
+
+            const midLine = new THREE.Mesh(new THREE.PlaneGeometry(ARENA.WIDTH - 4, 0.8), lineMat);
+            midLine.rotation.x = -Math.PI / 2;
+            midLine.position.y = 0.04;
+            group.add(midLine);
+
+            const centerRing = new THREE.Mesh(new THREE.RingGeometry(15.5, 16.5, 48), accentMat);
+            centerRing.rotation.x = -Math.PI / 2;
+            centerRing.position.y = 0.05;
+            group.add(centerRing);
+
+            [-1, 1].forEach(dir => {
+                const boxW = ARENA.GOAL_WIDTH + 22;
+                const boxD = 26;
+                const zone = new THREE.Mesh(new THREE.PlaneGeometry(boxW, boxD), lineMat);
+                zone.rotation.x = -Math.PI / 2;
+                zone.position.set(0, 0.03, dir * (ARENA.LENGTH / 2 - boxD / 2));
+                group.add(zone);
+            });
+
+            return group;
+        }
+
+        function createFloodlightTowers(theme) {
+            const group = new THREE.Group();
+            const poleMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.5,
+                metalness: 0.6
+            });
+
+            const towerCoords = [
+                [-86, -122, theme.orangeLight],
+                [86, -122, theme.orangeLight],
+                [-86, 122, theme.blueLight],
+                [86, 122, theme.blueLight]
+            ];
+
+            towerCoords.forEach(([x, z, glowHex]) => {
+                const tower = new THREE.Group();
+                tower.position.set(x, 0, z);
+
+                const mast = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2.4, 68, 10), poleMat);
+                mast.position.y = 34;
+                tower.add(mast);
+
+                const headMat = new THREE.MeshStandardMaterial({
+                    color: glowHex,
+                    emissive: glowHex,
+                    emissiveIntensity: 0.75,
+                    roughness: 0.2
+                });
+                const head = new THREE.Mesh(new THREE.BoxGeometry(11, 4.5, 3), headMat);
+                head.position.y = 68;
+                head.lookAt(0, 8, 0);
+                tower.add(head);
+
+                group.add(tower);
+            });
+
+            return group;
+        }
+
+        function createHexDomeTexture(theme) {
+            const c = document.createElement('canvas');
+            c.width = 256;
+            c.height = 256;
+            const ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, 256, 256);
+            ctx.strokeStyle = theme.wallHex;
+            ctx.lineWidth = 2;
+
+            const step = 32;
+            for (let x = 0; x <= 256; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, 256);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= 256; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(256, y);
+                ctx.stroke();
+            }
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(12, 4);
+            return tex;
+        }
+
+        function createBallTexture(style = 'carbon') {
+            const c = document.createElement('canvas');
+            c.width = 256;
+            c.height = 256;
+            const ctx = c.getContext('2d');
+
+            if (style === 'plasma') {
+                ctx.fillStyle = '#0369a1';
+                ctx.fillRect(0, 0, 256, 256);
+                ctx.strokeStyle = '#38bdf8';
+            } else if (style === 'magma') {
+                ctx.fillStyle = '#7c2d12';
+                ctx.fillRect(0, 0, 256, 256);
+                ctx.strokeStyle = '#fb923c';
+            } else if (style === 'enzo') {
+                ctx.fillStyle = '#311042';
+                ctx.fillRect(0, 0, 256, 256);
+                ctx.strokeStyle = '#f472b6';
+            } else {
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(0, 0, 256, 256);
+                ctx.strokeStyle = '#22d3ee';
+            }
+
+            ctx.lineWidth = 5;
+            for (let i = 0; i <= 256; i += 64) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, 256);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(256, i);
+                ctx.stroke();
+            }
+
+            return new THREE.CanvasTexture(c);
+        }
+
+        function buildStadium() {
+            const theme = MAP_THEMES[selectedMap] || MAP_THEMES.cyber;
+            scene.background = new THREE.Color(theme.bg);
+            scene.fog = new THREE.FogExp2(theme.fog, 0.0042);
+
+            turfTextureRef = createTurfTexture(theme);
+            hexDomeTextureRef = createHexDomeTexture(theme);
+
+            const floorGeo = new THREE.PlaneGeometry(ARENA.WIDTH, ARENA.LENGTH);
+            const floorMat = new THREE.MeshStandardMaterial({
+                map: graphicsSettings.textures ? turfTextureRef : null,
+                color: graphicsSettings.textures ? 0xffffff : theme.floorSolid,
+                roughness: 0.75,
+                metalness: 0.1
+            });
+            floorMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorMesh.rotation.x = -Math.PI / 2;
+            floorMesh.receiveShadow = graphicsSettings.shadows;
+            scene.add(floorMesh);
+
+            scene.add(createFieldLinesGroup(theme));
+
+            wallMatRef = new THREE.MeshBasicMaterial({
+                map: graphicsSettings.textures ? hexDomeTextureRef : null,
+                color: theme.wallTint,
+                transparent: true,
+                opacity: graphicsSettings.textures ? 0.55 : 0.14,
+                side: THREE.DoubleSide
+            });
+
+            const sideWallGeo = new THREE.PlaneGeometry(ARENA.LENGTH, ARENA.HEIGHT);
+            const leftWall = new THREE.Mesh(sideWallGeo, wallMatRef);
+            leftWall.position.set(-ARENA.WIDTH / 2, ARENA.HEIGHT / 2, 0);
+            leftWall.rotation.y = Math.PI / 2;
+            scene.add(leftWall);
+
+            const rightWall = new THREE.Mesh(sideWallGeo, wallMatRef);
+            rightWall.position.set(ARENA.WIDTH / 2, ARENA.HEIGHT / 2, 0);
+            rightWall.rotation.y = -Math.PI / 2;
+            scene.add(rightWall);
+
+            const buildGoalFrame = (zPos, colorHex) => {
+                const gGroup = new THREE.Group();
+                const frameMat = new THREE.MeshStandardMaterial({
+                    color: colorHex,
+                    emissive: colorHex,
+                    emissiveIntensity: 0.35,
+                    roughness: 0.3
+                });
+                const halfW = ARENA.GOAL_WIDTH / 2;
+
+                const leftPost = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, ARENA.GOAL_HEIGHT, 12), frameMat);
+                leftPost.position.set(-halfW, ARENA.GOAL_HEIGHT / 2, 0);
+                gGroup.add(leftPost);
+
+                const rightPost = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, ARENA.GOAL_HEIGHT, 12), frameMat);
+                rightPost.position.set(halfW, ARENA.GOAL_HEIGHT / 2, 0);
+                gGroup.add(rightPost);
+
+                const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, ARENA.GOAL_WIDTH + 1.2, 12), frameMat);
+                crossbar.rotation.z = Math.PI / 2;
+                crossbar.position.set(0, ARENA.GOAL_HEIGHT, 0);
+                gGroup.add(crossbar);
+
+                const netMat = new THREE.MeshBasicMaterial({
+                    color: colorHex,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.25
+                });
+                const netBox = new THREE.Mesh(
+                    new THREE.BoxGeometry(ARENA.GOAL_WIDTH, ARENA.GOAL_HEIGHT, ARENA.GOAL_DEPTH),
+                    netMat
+                );
+                const dirSign = zPos > 0 ? 1 : -1;
+                netBox.position.set(0, ARENA.GOAL_HEIGHT / 2, dirSign * (ARENA.GOAL_DEPTH / 2));
+                gGroup.add(netBox);
+
+                gGroup.position.set(0, 0, zPos);
+                scene.add(gGroup);
+            };
+
+            buildGoalFrame(ARENA.LENGTH / 2, theme.orangeLight);
+            buildGoalFrame(-ARENA.LENGTH / 2, theme.blueLight);
+
+            domeGroup = new THREE.Group();
+            const domeMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(280, 24, 16),
+                new THREE.MeshBasicMaterial({
+                    color: theme.wallTint,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.06
+                })
+            );
+            domeGroup.add(domeMesh);
+            scene.add(domeGroup);
+
+            skylineGroup = new THREE.Group();
+            const towerGeo = new THREE.BoxGeometry(16, 1, 16);
+            const towerMat = new THREE.MeshStandardMaterial({
+                color: 0x0f172a,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+            for (let i = 0; i < 16; i++) {
+                const angle = (i / 16) * Math.PI * 2;
+                const radius = 175;
+                const h = 28 + (i % 4) * 18;
+                const tower = new THREE.Mesh(towerGeo, towerMat);
+                tower.scale.set(1, h, 1);
+                tower.position.set(Math.cos(angle) * radius, h / 2 - 12, Math.sin(angle) * radius);
+                skylineGroup.add(tower);
+            }
+            skylineGroup.add(createFloodlightTowers(theme));
+            scene.add(skylineGroup);
+        }
+
+        function createBoostPads() {
+            boostPads = [];
+            const coords = [
+                { x: -38, z: -65, big: true },
+                { x: 38, z: -65, big: true },
+                { x: -38, z: 65, big: true },
+                { x: 38, z: 65, big: true },
+                { x: 0, z: 0, big: false },
+                { x: -24, z: 0, big: false },
+                { x: 24, z: 0, big: false },
+                { x: 0, z: -36, big: false },
+                { x: 0, z: 36, big: false }
+            ];
+
+            coords.forEach(pt => {
+                const radius = pt.big ? 2.4 : 1.5;
+                const padGroup = new THREE.Group();
+                padGroup.position.set(pt.x, 0.12, pt.z);
+
+                const ring = new THREE.Mesh(
+                    new THREE.RingGeometry(radius * 0.65, radius, 20),
+                    new THREE.MeshBasicMaterial({
+                        color: pt.big ? 0xfbbf24 : 0x38bdf8,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.55
+                    })
+                );
+                ring.rotation.x = -Math.PI / 2;
+                padGroup.add(ring);
+
+                const orb = new THREE.Mesh(
+                    new THREE.OctahedronGeometry(pt.big ? 1.35 : 0.8, 0),
+                    new THREE.MeshStandardMaterial({
+                        color: pt.big ? 0xf59e0b : 0x0ea5e9,
+                        emissive: pt.big ? 0xd97706 : 0x0284c7,
+                        emissiveIntensity: 0.5,
+                        roughness: 0.2
+                    })
+                );
+                orb.position.y = pt.big ? 2.0 : 1.35;
+                padGroup.add(orb);
+
+                scene.add(padGroup);
+                boostPads.push({
+                    x: pt.x,
+                    z: pt.z,
+                    big: pt.big,
+                    active: true,
+                    respawnTimer: 0,
+                    orb
+                });
+            });
+        }
+
+        function createBall() {
+            ballTextureRef = customBallTextureRef || createBallTexture(activeBallStyle);
+            const ballMat = new THREE.MeshStandardMaterial({
+                map: graphicsSettings.textures ? ballTextureRef : null,
+                color: 0xffffff,
+                roughness: 0.25,
+                metalness: 0.35
+            });
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(PHYSICS.BALL_RADIUS, 32, 24), ballMat);
+            mesh.castShadow = graphicsSettings.shadows;
+            scene.add(mesh);
+
+            ballTargetRing = new THREE.Mesh(
+                new THREE.RingGeometry(PHYSICS.BALL_RADIUS * 0.85, PHYSICS.BALL_RADIUS * 1.15, 28),
+                new THREE.MeshBasicMaterial({
+                    color: 0x38bdf8,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.45
+                })
+            );
+            ballTargetRing.rotation.x = -Math.PI / 2;
+            ballTargetRing.position.y = 0.08;
+            scene.add(ballTargetRing);
+
+            ball = {
+                mesh,
+                pos: new THREE.Vector3(0, PHYSICS.BALL_RADIUS + 2, 0),
+                vel: new THREE.Vector3(0, 0, 0)
+            };
+        }
+
+        function createNickSprite(nickText, isRainbow, team = 'blue') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 148;
+            const ctx = canvas.getContext('2d');
+
+            const isOrange = team === 'orange';
+            const borderHex = isOrange ? '#fb923c' : (isRainbow ? '#ec4899' : '#38bdf8');
+            const teamLabel = isOrange ? 'TIME LARANJA' : 'TIME AZUL';
+            const teamColor = isOrange ? '#fdba74' : '#7dd3fc';
+
+            ctx.fillStyle = 'rgba(9, 14, 28, 0.78)';
+            ctx.fillRect(36, 16, 440, 114);
+
+            ctx.strokeStyle = borderHex;
+            ctx.lineWidth = 4;
+            ctx.strokeRect(36, 16, 440, 114);
+
+            ctx.font = 'bold 42px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(nickText || 'Jogador', 256, 56);
+
+            ctx.font = '800 22px Inter, sans-serif';
+            ctx.fillStyle = teamColor;
+            ctx.fillText(teamLabel, 256, 102);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({
+                map: tex,
+                transparent: true,
+                depthTest: false
+            });
+            const sprite = new THREE.Sprite(mat);
+            sprite.position.set(0, 4.5, 0);
+            sprite.scale.set(7.6, 2.2, 1);
+            return sprite;
+        }
+
+        function refreshPlayerNickSprite() {
+            if (!playerCar) return;
+            if (playerNickSprite) {
+                playerCar.mesh.remove(playerNickSprite);
+                if (playerNickSprite.material && playerNickSprite.material.map) {
+                    playerNickSprite.material.map.dispose();
+                }
+                if (playerNickSprite.material) {
+                    playerNickSprite.material.dispose();
+                }
+            }
+            playerNickSprite = createNickSprite(playerNick, rainbowNick, playerCar.team || 'blue');
+            playerCar.mesh.add(playerNickSprite);
+        }
+
+        function resetPositionsForKickoff() {
+            if (ball) {
+                ball.pos.set(0, PHYSICS.BALL_RADIUS + 2, 0);
+                ball.vel.set(0, 0, 0);
+                ball.mesh.position.copy(ball.pos);
+            }
+
+            if (playerCar) {
+                playerCar.pos.set(0, 0, -56);
+                playerCar.vel.set(0, 0, 0);
+                playerCar.yaw = Math.PI;
+                playerCar.pitch = 0;
+                playerCar.roll = 0;
+                playerCar.boost = 100;
+                playerCar.grounded = true;
+                playerCar.canDoubleJump = true;
+                playerCar.flipTimer = 0;
+                playerCar.mesh.position.copy(playerCar.pos);
+                playerCar.mesh.rotation.set(0, playerCar.yaw, 0);
+                playerCar.bodyGroup.rotation.set(0, 0, 0);
+            }
+
+            if (botCar) {
+                botCar.pos.set(0, 0, 56);
+                botCar.vel.set(0, 0, 0);
+                botCar.yaw = 0;
+                botCar.pitch = 0;
+                botCar.roll = 0;
+                botCar.boost = 100;
+                botCar.grounded = true;
+                botCar.canDoubleJump = true;
+                botCar.flipTimer = 0;
+                botCar.mesh.position.copy(botCar.pos);
+                botCar.mesh.rotation.set(0, botCar.yaw, 0);
+                botCar.bodyGroup.rotation.set(0, 0, 0);
+                botCar.mesh.visible = hasActiveBot();
+            }
+        }
+
+        function createCar(bodyColorHex, accentColorHex, isPlayer) {
+            const root = new THREE.Group();
+            const bodyGroup = new THREE.Group();
+            bodyGroup.rotation.order = 'YXZ';
+            root.add(bodyGroup);
+
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: bodyColorHex,
+                roughness: 0.25,
+                metalness: 0.45
+            });
+            const accentMat = new THREE.MeshStandardMaterial({
+                color: accentColorHex,
+                roughness: 0.35,
+                metalness: 0.6
+            });
+            const hubMat = new THREE.MeshStandardMaterial({
+                color: accentColorHex,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            const darkMat = new THREE.MeshStandardMaterial({
+                color: 0x0f172a,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.0, 5.2), bodyMat);
+            chassis.position.set(0, 1.15, 0);
+            chassis.castShadow = true;
+            bodyGroup.add(chassis);
+
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.75, 2.3), darkMat);
+            cabin.position.set(0, 1.9, -0.2);
+            cabin.castShadow = true;
+            bodyGroup.add(cabin);
+
+            const spoilerWing = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.16, 0.75), accentMat);
+            spoilerWing.position.set(0, 2.15, 2.25);
+            bodyGroup.add(spoilerWing);
+
+            const wheels = [];
+            const wheelPositions = [
+                [-1.45, 0.68, -1.65],
+                [1.45, 0.68, -1.65],
+                [-1.45, 0.68, 1.65],
+                [1.45, 0.68, 1.65]
+            ];
+            wheelPositions.forEach(([wx, wy, wz]) => {
+                const wGroup = new THREE.Group();
+                wGroup.position.set(wx, wy, wz);
+                const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 0.55, 16), darkMat);
+                tire.rotation.z = Math.PI / 2;
+                tire.castShadow = true;
+                wGroup.add(tire);
+
+                const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.58, 12), hubMat);
+                rim.rotation.z = Math.PI / 2;
+                wGroup.add(rim);
+
+                bodyGroup.add(wGroup);
+                wheels.push(wGroup);
+            });
+
+            const boostFlame = new THREE.Mesh(
+                new THREE.ConeGeometry(0.45, 1.8, 12),
+                new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.85 })
+            );
+            boostFlame.rotation.x = Math.PI / 2;
+            boostFlame.position.set(0, 1.15, 3.35);
+            boostFlame.visible = false;
+            bodyGroup.add(boostFlame);
+
+            scene.add(root);
+
+            const carObj = {
+                mesh: root,
+                bodyGroup,
+                bodyMat,
+                accentMat,
+                hubMat,
+                boostFlame,
+                wheels,
+                isPlayer,
+                pos: new THREE.Vector3(),
+                vel: new THREE.Vector3(),
+                yaw: 0,
+                pitch: 0,
+                roll: 0,
+                boost: 100,
+                grounded: true,
+                canDoubleJump: true,
+                flipTimer: 0,
+                flipAxis: 'none',
+                flipDir: 1,
+                botTargetX: 0
+            };
+
+            if (isPlayer) {
+                playerNickSprite = createNickSprite(playerNick, rainbowNick, 'blue');
+                root.add(playerNickSprite);
+            } else {
+                const botNickSprite = createNickSprite('BOT LARANJA', false, 'orange');
+                root.add(botNickSprite);
+            }
+
+            return carObj;
+        }
+
+        function triggerJumpOrFlip(car, steerInput, throttleInput) {
+            if (car.grounded) {
+                car.vel.y = PHYSICS.JUMP_IMPULSE;
+                car.grounded = false;
+                car.canDoubleJump = true;
+                sound.playJump();
+            } else if (car.canDoubleJump) {
+                car.canDoubleJump = false;
+                car.flipTimer = 0.45;
+                if (car.isPlayer && Math.hypot(car.vel.x, car.vel.z) > 24) {
+                    awardPoints(200, 'DODGE FLIP!');
+                }
+                if (Math.abs(steerInput) > 0.35) {
+                    car.flipAxis = 'roll';
+                    car.flipDir = steerInput > 0 ? 1 : -1;
+                    car.vel.x += -Math.cos(car.yaw) * steerInput * PHYSICS.DODGE_IMPULSE * 0.65;
+                    car.vel.z += -Math.sin(car.yaw) * steerInput * PHYSICS.DODGE_IMPULSE * 0.65;
+                } else {
+                    car.flipAxis = 'pitch';
+                    const dir = throttleInput >= -0.1 ? 1 : -1;
+                    car.flipDir = dir;
+                    car.vel.x += -Math.sin(car.yaw) * dir * PHYSICS.DODGE_IMPULSE;
+                    car.vel.z += -Math.cos(car.yaw) * dir * PHYSICS.DODGE_IMPULSE;
+                }
+                car.vel.y = Math.max(car.vel.y, 11);
+                sound.playJump();
+            }
+        }
+
+        function updateCarPhysics(car, ctrl, dt) {
+            const fwdX = -Math.sin(car.yaw);
+            const fwdZ = -Math.cos(car.yaw);
+
+            const infiniteBoost = gameMode === 'training';
+            const wantsBoost = ctrl.boosting && (infiniteBoost || car.boost > 0);
+
+            const carBoundX = ARENA.WIDTH / 2 - 2.6;
+            const carBoundZ = ARENA.LENGTH / 2 - 3.2;
+            const wallClimbMaxY = ARENA.HEIGHT - 2.4;
+
+            const nearLeftWall = car.pos.x <= -carBoundX + 0.45;
+            const nearRightWall = car.pos.x >= carBoundX - 0.45;
+            const nearBackWall = car.pos.z <= -carBoundZ + 0.45;
+            const nearFrontWall = car.pos.z >= carBoundZ - 0.45;
+            const nearCeiling = car.pos.y >= wallClimbMaxY - 0.35;
+            const nearAnyWall = nearLeftWall || nearRightWall || nearBackWall || nearFrontWall;
+            const horizSpeed = Math.hypot(car.vel.x, car.vel.z);
+            const activeDrive = Math.abs(ctrl.throttle) > 0.1 || wantsBoost;
+            const isClimbingWall = nearAnyWall && activeDrive;
+            const isCeilingDriving = nearCeiling && activeDrive && horizSpeed > 16;
+
+            if (wantsBoost) {
+                if (!infiniteBoost) {
+                    car.boost = Math.max(0, car.boost - 34 * dt);
+                }
+                car.vel.x += fwdX * PHYSICS.CAR_BOOST_ACCEL * dt;
+                car.vel.z += fwdZ * PHYSICS.CAR_BOOST_ACCEL * dt;
+                if (isClimbingWall) {
+                    car.vel.y = Math.max(car.vel.y, 32);
+                } else if (nearCeiling || car.pos.y > wallClimbMaxY * 0.72) {
+                    car.vel.y = Math.max(car.vel.y, 18);
+                }
+                car.boostFlame.visible = true;
+            } else {
+                car.boostFlame.visible = false;
+                if (Math.abs(ctrl.throttle) > 0.05) {
+                    const climbSign = ctrl.throttle > 0 ? 1 : -0.75;
+                    car.vel.x += fwdX * ctrl.throttle * PHYSICS.CAR_ACCEL * dt;
+                    car.vel.z += fwdZ * ctrl.throttle * PHYSICS.CAR_ACCEL * dt;
+                    if (isClimbingWall) {
+                        car.vel.y = THREE.MathUtils.lerp(car.vel.y, climbSign * 26, Math.min(1, 12 * dt));
+                    }
+                } else if (isClimbingWall && car.pos.y > 0.2) {
+                    car.vel.y = THREE.MathUtils.lerp(car.vel.y, 0, Math.min(1, 9 * dt));
+                }
+            }
+
+            if (car.grounded || isClimbingWall || isCeilingDriving) {
+                const turnRate = ctrl.drifting ? PHYSICS.CAR_DRIFT_TURN : PHYSICS.CAR_TURN_SPEED;
+                const forwardDot = car.vel.x * fwdX + car.vel.z * fwdZ;
+                const reverseFactor = forwardDot < -2 ? -0.85 : 1;
+                const deltaYaw = ctrl.steer * turnRate * reverseFactor * dt;
+                car.yaw += deltaYaw;
+
+                if (car.isPlayer && ctrl.drifting && Math.abs(ctrl.steer) > 0.5 && Math.hypot(car.vel.x, car.vel.z) > 32) {
+                    trickSpinAccum += Math.abs(deltaYaw);
+                    if (trickSpinAccum >= Math.PI * 2.5) {
+                        trickSpinAccum = 0;
+                        awardPoints(200, 'DRIFT TRICK!');
+                    }
+                } else {
+                    trickSpinAccum = Math.max(0, trickSpinAccum - dt * 2.5);
+                }
+
+                const lateralGrip = ctrl.drifting ? 2.2 : 8.5;
+                const rightX = Math.cos(car.yaw);
+                const rightZ = -Math.sin(car.yaw);
+                const latSpeed = car.vel.x * rightX + car.vel.z * rightZ;
+                const latRemove = Math.min(1, lateralGrip * dt);
+                car.vel.x -= rightX * latSpeed * latRemove;
+                car.vel.z -= rightZ * latSpeed * latRemove;
+
+                car.flipTimer = 0;
+                if (isCeilingDriving) {
+                    car.pitch = THREE.MathUtils.lerp(car.pitch, 0, Math.min(1, 16 * dt));
+                    car.roll = THREE.MathUtils.lerp(car.roll, Math.PI, Math.min(1, 16 * dt));
+                } else if (isClimbingWall && car.pos.y > 0.2) {
+                    const climbDir = car.vel.y >= -1 ? 1 : -1;
+                    const targetClimbPitch = climbDir > 0 ? Math.PI * 0.48 : -Math.PI * 0.48;
+                    car.pitch = THREE.MathUtils.lerp(car.pitch, targetClimbPitch, Math.min(1, 16 * dt));
+                    car.roll = THREE.MathUtils.lerp(car.roll, ctrl.steer * 0.22, Math.min(1, 14 * dt));
+                } else {
+                    car.pitch = THREE.MathUtils.lerp(car.pitch, 0, Math.min(1, 16 * dt));
+                    car.roll = THREE.MathUtils.lerp(car.roll, ctrl.drifting ? -ctrl.steer * 0.14 : 0, Math.min(1, 14 * dt));
+                }
+            } else {
+                if (car.flipTimer > 0) {
+                    car.flipTimer = Math.max(0, car.flipTimer - dt);
+                    const flipDelta = Math.PI * 2 * (dt / 0.45) * car.flipDir;
+                    if (car.flipAxis === 'roll') {
+                        car.roll += flipDelta;
+                    } else if (car.flipAxis === 'pitch') {
+                        car.pitch += flipDelta;
+                    }
+                    if (car.isPlayer && gameState === 'PLAYING' && car.flipTimer === 0 && Math.hypot(car.vel.x, car.vel.z) > 22) {
+                        awardPoints(200, 'AIR TRICK!');
+                    }
+                } else {
+                    const targetAirPitch = THREE.MathUtils.clamp(-ctrl.throttle * 0.45, -0.55, 0.55);
+                    const targetAirRoll = THREE.MathUtils.clamp(-ctrl.steer * 0.65, -0.75, 0.75);
+                    car.pitch = THREE.MathUtils.lerp(car.pitch, targetAirPitch, Math.min(1, 6 * dt));
+                    car.roll = THREE.MathUtils.lerp(car.roll, targetAirRoll, Math.min(1, 7 * dt));
+                }
+            }
+
+            if (isCeilingDriving) {
+                car.vel.y = 0;
+            } else {
+                if (nearCeiling && car.vel.y > -4) {
+                    car.vel.y = -4;
+                }
+                const fallMult = nearCeiling ? 1.65 : 1.25;
+                car.vel.y += PHYSICS.GRAVITY * fallMult * dt;
+            }
+
+            const maxSpd = wantsBoost ? PHYSICS.CAR_BOOST_SPEED : PHYSICS.CAR_MAX_SPEED;
+            const currentHorizSpeed = Math.hypot(car.vel.x, car.vel.z);
+            if (currentHorizSpeed > maxSpd) {
+                const scale = maxSpd / currentHorizSpeed;
+                car.vel.x *= scale;
+                car.vel.z *= scale;
+            }
+
+            car.pos.addScaledVector(car.vel, dt);
+
+            if (car.pos.x < -carBoundX) {
+                car.pos.x = -carBoundX;
+                if (car.vel.x < 0) car.vel.x = 0;
+            } else if (car.pos.x > carBoundX) {
+                car.pos.x = carBoundX;
+                if (car.vel.x > 0) car.vel.x = 0;
+            }
+
+            if (car.pos.z < -carBoundZ) {
+                car.pos.z = -carBoundZ;
+                if (car.vel.z < 0) car.vel.z = 0;
+            } else if (car.pos.z > carBoundZ) {
+                car.pos.z = carBoundZ;
+                if (car.vel.z > 0) car.vel.z = 0;
+            }
+
+            if (car.pos.y > wallClimbMaxY) {
+                car.pos.y = wallClimbMaxY;
+                if (car.vel.y > 0) car.vel.y = isCeilingDriving ? 0 : -4;
+            }
+
+            if (car.pos.y <= 0) {
+                car.pos.y = 0;
+                if (car.vel.y < 0) car.vel.y = 0;
+                car.grounded = true;
+                car.canDoubleJump = true;
+            } else if (!isClimbingWall && !isCeilingDriving) {
+                car.grounded = false;
+            }
+
+            car.mesh.position.copy(car.pos);
+            car.mesh.rotation.set(0, car.yaw, 0);
+            car.bodyGroup.rotation.set(car.pitch, 0, car.roll);
+
+            const wheelSpin = (Math.hypot(car.vel.x, car.vel.z) * dt) / 0.68;
+            if (car.wheels) {
+                car.wheels.forEach(w => {
+                    w.rotation.x -= wheelSpin;
+                });
+            }
+
+            if (car.boostFlame.visible) {
+                const pulse = 0.85 + Math.sin(performance.now() * 0.04) * 0.25;
+                const flameLenScale = isClimbingWall ? pulse * 1.45 : pulse;
+                car.boostFlame.scale.set(pulse, pulse, flameLenScale);
+            }
+        }
+
+        function spawnGoalExplosion(goalTeam) {
+            if (!graphicsSettings.particles || !scene) return;
+            const goalFx = GOAL_EFFECTS[equippedItems.goal] || GOAL_EFFECTS.neon_burst;
+            const colorHex = goalTeam === 'blue' ? goalFx.primary : goalFx.secondary;
+            const particleGeo = new THREE.BoxGeometry(1.1, 1.1, 1.1);
+
+            for (let i = 0; i < goalFx.count; i++) {
+                const mat = new THREE.MeshBasicMaterial({
+                    color: i % 3 === 0 ? goalFx.accent : colorHex,
+                    transparent: true,
+                    opacity: 1
+                });
+                const mesh = new THREE.Mesh(particleGeo, mat);
+                mesh.position.copy(ball.pos);
+                scene.add(mesh);
+
+                const vel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 58,
+                    12 + Math.random() * 36,
+                    (Math.random() - 0.5) * 58
+                );
+                goalParticles.push({
+                    mesh,
+                    vel,
+                    life: 1.4 + Math.random() * 0.7
+                });
+            }
+        }
+
+        function updateGoalParticles(dt) {
+            for (let i = goalParticles.length - 1; i >= 0; i--) {
+                const p = goalParticles[i];
+                p.life -= dt;
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    p.mesh.material.dispose();
+                    goalParticles.splice(i, 1);
+                    continue;
+                }
+                p.vel.y -= 28 * dt;
+                p.mesh.position.addScaledVector(p.vel, dt);
+                p.mesh.rotation.x += 5 * dt;
+                p.mesh.rotation.y += 5 * dt;
+                p.mesh.material.opacity = Math.max(0, p.life / 1.5);
+            }
+        }
+
+        function handleGoalScored(goalTeam) {
+            if (gameState !== 'PLAYING') return;
+            gameState = 'GOAL_CELEBRATION';
+            slowMoTimer = 1.4;
+            sound.playGoal();
+            spawnGoalExplosion(goalTeam);
+
+            if (goalTeam === 'blue') {
+                playerPoints += 100;
+                updatePointsHUD();
+            }
+
+            if (gameMode === 'training') {
+                const subMsg = goalTeam === 'blue' ? '+100 PTS POR GOL! Reiniciando...' : 'Reiniciando bola...';
+                showAnnouncer('GOL NO TREINO!', subMsg, 1500);
+                setTimeout(() => {
+                    if (gameState === 'GOAL_CELEBRATION') {
+                        resetPositionsForKickoff();
+                        gameState = 'PLAYING';
+                    }
+                }, 1500);
+                return;
+            }
+
+            if (goalTeam === 'blue') scoreBlue++;
+            else scoreOrange++;
+            updateScoreHUD();
+
+            showAnnouncer(
+                'GOLACO!',
+                goalTeam === 'blue' ? 'Time Azul marcou! (+100 PTS)' : 'Time Laranja marcou!',
+                2200
+            );
+
+            if (isOvertime) {
+                setTimeout(() => finishMatch(), 2200);
+                return;
+            }
+
+            setTimeout(() => {
+                if (gameState === 'GOAL_CELEBRATION') {
+                    startCountdown();
+                }
+            }, 2200);
+        }
+
+        function showAnnouncer(mainText, subText, durationMs = 0) {
+            const box = document.getElementById('center-announcer');
+            const mainEl = document.getElementById('announcer-main');
+            const subEl = document.getElementById('announcer-sub');
+            if (!box || !mainEl || !subEl) return;
+
+            mainEl.textContent = mainText;
+            subEl.textContent = subText || '';
+            subEl.style.display = subText ? 'block' : 'none';
+            box.classList.remove('hidden');
+
+            if (durationMs > 0) {
+                setTimeout(() => {
+                    if (gameState !== 'COUNTDOWN') {
+                        box.classList.add('hidden');
+                    }
+                }, durationMs);
+            }
+        }
+
+        function hideAnnouncer() {
+            const box = document.getElementById('center-announcer');
+            if (box) box.classList.add('hidden');
+        }
+
+        function startCountdown() {
+            resetPositionsForKickoff();
+            gameState = 'COUNTDOWN';
+            clearInputs();
+
+            const steps = ['3', '2', '1'];
+            let idx = 0;
+
+            const tick = () => {
+                if (gameState !== 'COUNTDOWN') return;
+                const label = steps[idx];
+                showAnnouncer(label, 'Prepare-se para o Kickoff', 650);
+                sound.playBeep(idx === steps.length - 1);
+                idx++;
+
+                if (idx < steps.length) {
+                    setTimeout(tick, 750);
+                } else {
+                    setTimeout(() => {
+                        if (gameState === 'COUNTDOWN') {
+                            hideAnnouncer();
+                            gameState = 'PLAYING';
+                        }
+                    }, 550);
+                }
+            };
+            tick();
+        }
+
+        function startMatchTimer() {
+            if (matchTimerInterval) clearInterval(matchTimerInterval);
+            matchTimerInterval = setInterval(() => {
+                if (gameState !== 'PLAYING' || gameMode === 'training') return;
+
+                if (!isOvertime) {
+                    matchTimeRemaining--;
+                    if (matchTimeRemaining <= 0) {
+                        matchTimeRemaining = 0;
+                        if (scoreBlue === scoreOrange) {
+                            isOvertime = true;
+                            showAnnouncer('PRORROGACAO!', 'Gol de Ouro', 1800);
+                        } else {
+                            finishMatch();
+                        }
+                    }
+                } else {
+                    matchTimeRemaining++;
+                }
+                updateTimerHUD();
+            }, 1000);
+        }
+
+        function updateTimerHUD() {
+            const el = document.getElementById('match-timer');
+            if (!el) return;
+            if (gameMode === 'training') {
+                el.textContent = 'TREINO';
+                return;
+            }
+            const mins = Math.floor(Math.abs(matchTimeRemaining) / 60);
+            const secs = Math.abs(matchTimeRemaining) % 60;
+            const prefix = isOvertime ? '+' : '';
+            el.textContent = `${prefix}${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function updateScoreHUD() {
+            const b = document.getElementById('score-blue');
+            const o = document.getElementById('score-orange');
+            if (b) b.textContent = String(scoreBlue);
+            if (o) o.textContent = String(scoreOrange);
+        }
+
+        function finishMatch() {
+            gameState = 'GAMEOVER';
+            if (matchTimerInterval) clearInterval(matchTimerInterval);
+            clearInputs();
+
+            const titleEl = document.getElementById('gameover-title');
+            const scoreEl = document.getElementById('gameover-score');
+            if (titleEl) {
+                if (scoreBlue > scoreOrange) titleEl.textContent = 'VITORIA DO AZUL!';
+                else if (scoreOrange > scoreBlue) titleEl.textContent = 'VITORIA DO LARANJA!';
+                else titleEl.textContent = 'EMPATE!';
+            }
+            if (scoreEl) {
+                scoreEl.textContent = `Azul ${scoreBlue} - ${scoreOrange} Laranja`;
+            }
+
+            document.getElementById('modal-gameover').classList.remove('hidden');
+        }
+
+        function startMatch() {
+            scoreBlue = 0;
+            scoreOrange = 0;
+            matchTimeRemaining = 180;
+            isOvertime = false;
+            updateScoreHUD();
+            updateTimerHUD();
+
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('modal-play').classList.add('hidden');
+            document.getElementById('modal-gameover').classList.add('hidden');
+            document.getElementById('modal-pause').classList.add('hidden');
+
+            document.getElementById('hud-top').classList.remove('hidden');
+            document.getElementById('hud-bottom').classList.remove('hidden');
+            document.getElementById('hud-mode-label').textContent = gameMode === 'training' ? 'TREINO' : '1V1';
+            document.getElementById('btn-reset-ball').classList.toggle('hidden', gameMode !== 'training');
+
+            const roomBadge = document.getElementById('hud-room-badge');
+            if (activeRoomCode) {
+                roomBadge.textContent = `SALA ${activeRoomCode}`;
+                roomBadge.classList.remove('hidden');
+            } else {
+                roomBadge.classList.add('hidden');
+            }
+
+            applyPlatformUI();
+            startCountdown();
+            startMatchTimer();
+        }
+
+        function returnToMenu() {
+            gameState = 'MENU';
+            if (matchTimerInterval) clearInterval(matchTimerInterval);
+            clearInputs();
+            hideAnnouncer();
+            const toastEl = document.getElementById('points-toast');
+            if (toastEl) toastEl.classList.add('hidden');
+            resetPositionsForKickoff();
+
+            document.getElementById('hud-top').classList.add('hidden');
+            document.getElementById('hud-bottom').classList.add('hidden');
+            document.getElementById('pc-controls-hint').classList.add('hidden');
+            document.getElementById('mobile-controls').classList.add('hidden');
+            document.getElementById('modal-pause').classList.add('hidden');
+            document.getElementById('modal-gameover').classList.add('hidden');
+            document.getElementById('main-menu').classList.remove('hidden');
+        }
+
+        function applyPlatformUI() {
+            const isPlayingOrCountdown = gameState === 'PLAYING' || gameState === 'COUNTDOWN' || gameState === 'GOAL_CELEBRATION';
+            document.getElementById('pc-controls-hint').classList.toggle('hidden', !(isPlayingOrCountdown && platform === 'pc'));
+            document.getElementById('mobile-controls').classList.toggle('hidden', !(isPlayingOrCountdown && platform === 'mobile'));
+            document.getElementById('menu-platform-label').textContent = platform.toUpperCase();
+        }
+
+        function applyGraphicsSettings() {
+            if (renderer) {
+                renderer.shadowMap.enabled = graphicsSettings.shadows;
+            }
+            if (floorMesh && floorMesh.material) {
+                const theme = MAP_THEMES[selectedMap] || MAP_THEMES.cyber;
+                floorMesh.material.map = graphicsSettings.textures ? turfTextureRef : null;
+                floorMesh.material.color.setHex(graphicsSettings.textures ? 0xffffff : theme.floorSolid);
+                floorMesh.material.needsUpdate = true;
+                floorMesh.receiveShadow = graphicsSettings.shadows;
+            }
+            if (wallMatRef) {
+                wallMatRef.map = graphicsSettings.textures ? hexDomeTextureRef : null;
+                wallMatRef.opacity = graphicsSettings.textures ? 0.55 : 0.14;
+                wallMatRef.needsUpdate = true;
+            }
+            if (ball && ball.mesh && ball.mesh.material) {
+                ball.mesh.material.map = graphicsSettings.textures ? ballTextureRef : null;
+                ball.mesh.material.needsUpdate = true;
+                ball.mesh.castShadow = graphicsSettings.shadows;
+            }
+            if (domeGroup) domeGroup.visible = graphicsSettings.domeAndSkyline;
+            if (skylineGroup) skylineGroup.visible = graphicsSettings.domeAndSkyline;
+
+            document.getElementById('state-textures').textContent = graphicsSettings.textures ? 'ATIVADO' : 'DESATIVADO';
+            document.getElementById('state-shadows').textContent = graphicsSettings.shadows ? 'ATIVADO' : 'DESATIVADO';
+            document.getElementById('state-dome').textContent = graphicsSettings.domeAndSkyline ? 'ATIVADO' : 'DESATIVADO';
+            document.getElementById('state-particles').textContent = graphicsSettings.particles ? 'ATIVADO' : 'DESATIVADO';
+        }
+
+        function rebuildArenaForMap() {
+            if (!scene) return;
+            const keep = new Set([
+                playerCar && playerCar.mesh,
+                botCar && botCar.mesh,
+                ball && ball.mesh,
+                ballTargetRing
+            ].filter(Boolean));
+
+            for (let i = scene.children.length - 1; i >= 0; i--) {
+                const child = scene.children[i];
+                if (!keep.has(child) && !(child instanceof THREE.Light)) {
+                    scene.remove(child);
+                }
+            }
+
+            buildStadium();
+            createBoostPads();
+            applyGraphicsSettings();
+            document.getElementById('menu-map-name').textContent = (MAP_THEMES[selectedMap] || MAP_THEMES.cyber).label;
+        }
+
+        function updateCamera(dt) {
+            if (!camera || !playerCar) return;
+
+            let desiredPos;
+            let lookTarget;
+
+            if (gameState === 'MENU') {
+                const t = performance.now() * 0.00045;
+                desiredPos = new THREE.Vector3(
+                    playerCar.pos.x + Math.sin(t) * 13,
+                    playerCar.pos.y + 5.2,
+                    playerCar.pos.z + Math.cos(t) * 13
+                );
+                lookTarget = new THREE.Vector3(playerCar.pos.x, playerCar.pos.y + 1.6, playerCar.pos.z);
+            } else if (isBallCam && ball) {
+                const carToBallDir = new THREE.Vector3().subVectors(ball.pos, playerCar.pos);
+                carToBallDir.y = 0;
+                if (carToBallDir.lengthSq() > 0.0001) {
+                    carToBallDir.normalize();
+                } else {
+                    carToBallDir.set(-Math.sin(playerCar.yaw), 0, -Math.cos(playerCar.yaw));
+                }
+
+                desiredPos = playerCar.pos.clone();
+                desiredPos.addScaledVector(carToBallDir, -21);
+                desiredPos.y = Math.max(7.5, playerCar.pos.y + 8.5);
+
+                lookTarget = new THREE.Vector3().lerpVectors(playerCar.pos, ball.pos, 0.55);
+                lookTarget.y = Math.max(2.5, ball.pos.y * 0.45 + 2.0);
+            } else {
+                const fwdX = -Math.sin(playerCar.yaw);
+                const fwdZ = -Math.cos(playerCar.yaw);
+                desiredPos = new THREE.Vector3(
+                    playerCar.pos.x - fwdX * 21,
+                    Math.max(7.5, playerCar.pos.y + 8.5),
+                    playerCar.pos.z - fwdZ * 21
+                );
+                lookTarget = new THREE.Vector3(
+                    playerCar.pos.x + fwdX * 14,
+                    playerCar.pos.y + 3.2,
+                    playerCar.pos.z + fwdZ * 14
+                );
+            }
+
+            const boundX = ARENA.WIDTH / 2 - 4;
+            const boundZ = ARENA.LENGTH / 2 - 4;
+            desiredPos.x = THREE.MathUtils.clamp(desiredPos.x, -boundX, boundX);
+            desiredPos.z = THREE.MathUtils.clamp(desiredPos.z, -boundZ, boundZ);
+            desiredPos.y = THREE.MathUtils.clamp(desiredPos.y, 3.5, ARENA.HEIGHT - 3);
+
+            camera.position.lerp(desiredPos, Math.min(1, 9.5 * dt));
+            camera.lookAt(lookTarget);
+        }
+
+        function updateHUD() {
+            if (gameState === 'MENU' || !playerCar) return;
+
+            const speedKmh = Math.round(Math.hypot(playerCar.vel.x, playerCar.vel.z) * 2.1);
+            document.getElementById('speed-value').textContent = String(speedKmh);
+
+            const boostVal = gameMode === 'training' ? 100 : Math.round(playerCar.boost);
+            document.getElementById('boost-text').textContent = String(boostVal);
+
+            const ring = document.getElementById('boost-ring');
+            if (ring) {
+                const circumference = 163.36;
+                const pct = Math.max(0, Math.min(1, boostVal / 100));
+                ring.style.strokeDashoffset = (circumference * (1 - pct)).toFixed(2);
+            }
+        }
+
+        function onWindowResize() {
+            if (!camera || !renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(1);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const rawDt = clock ? clock.getDelta() : 0.016;
+            let dt = Math.min(rawDt, 0.05);
+
+            if (slowMoTimer > 0) {
+                slowMoTimer = Math.max(0, slowMoTimer - rawDt);
+                dt *= 0.35;
+            }
+
+            if (playerNickSprite && rainbowNick) {
+                const hue = (performance.now() * 0.12) % 360;
+                playerNickSprite.material.color.setHSL(hue / 360, 0.9, 0.65);
+            } else if (playerNickSprite) {
+                playerNickSprite.material.color.setHex(0xffffff);
+            }
+
+            if (gameState === 'PLAYING') {
+                const ctrl = getPlayerControl();
+                updateCarPhysics(playerCar, ctrl, dt);
+                updateBotAI(dt);
+                updateBallAndCollisions(dt);
+            } else if (gameState === 'GOAL_CELEBRATION') {
+                updateBallAndCollisions(dt);
+            }
+
+            updateGoalParticles(dt);
+            updateCamera(dt);
+            updateHUD();
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function bindEvents() {
+            window.addEventListener('resize', onWindowResize);
+
+            window.addEventListener('keydown', (e) => {
+                const tag = e.target && e.target.tagName ? e.target.tagName.toUpperCase() : '';
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+                    return;
+                }
+
+                if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                    e.preventDefault();
+                }
+
+                const wasPressed = Boolean(keys[e.code]);
+                keys[e.code] = true;
+
+                if (e.code === 'Escape') {
+                    if (gameState === 'PLAYING') {
+                        gameState = 'PAUSED';
+                        clearInputs();
+                        document.getElementById('modal-pause').classList.remove('hidden');
+                    } else if (gameState === 'PAUSED') {
+                        gameState = 'PLAYING';
+                        document.getElementById('modal-pause').classList.add('hidden');
+                    }
+                }
+
+                if (e.code === 'KeyF' && !wasPressed) {
+                    isBallCam = !isBallCam;
+                    document.getElementById('btn-toggle-cam').textContent = isBallCam ? 'Cam Bola [F]' : 'Cam Livre [F]';
+                }
+
+                if (e.code === 'KeyR' && !wasPressed && gameMode === 'training') {
+                    resetPositionsForKickoff();
+                }
+
+                if (e.code === 'Space' && !wasPressed && gameState === 'PLAYING' && playerCar) {
+                    const ctrl = getPlayerControl();
+                    triggerJumpOrFlip(playerCar, ctrl.steer, ctrl.throttle);
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+            });
+
+            const canvasEl = document.getElementById('game-canvas');
+            canvasEl.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && gameState === 'PLAYING') mouseBoostHeld = true;
+            });
+            window.addEventListener('mouseup', () => {
+                mouseBoostHeld = false;
+            });
+
+            document.getElementById('btn-menu-play').addEventListener('click', () => {
+                document.getElementById('input-quick-nick').value = playerNick;
+                document.getElementById('modal-play').classList.remove('hidden');
+            });
+            document.getElementById('btn-menu-garage').addEventListener('click', () => {
+                document.getElementById('modal-garage').classList.remove('hidden');
+            });
+            document.getElementById('btn-menu-shop').addEventListener('click', () => {
+                refreshShopUI();
+                document.getElementById('modal-shop').classList.remove('hidden');
+            });
+            document.getElementById('btn-menu-rooms').addEventListener('click', () => {
+                document.getElementById('modal-rooms').classList.remove('hidden');
+            });
+            document.getElementById('btn-menu-profile').addEventListener('click', () => {
+                document.getElementById('input-nick').value = playerNick;
+                document.getElementById('modal-profile').classList.remove('hidden');
+            });
+            document.getElementById('btn-menu-options').addEventListener('click', () => {
+                document.getElementById('modal-options').classList.remove('hidden');
+            });
+            document.getElementById('btn-news-tab').addEventListener('click', () => {
+                document.getElementById('modal-play').classList.remove('hidden');
+            });
+
+            document.querySelectorAll('[data-close]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-close');
+                    document.getElementById(targetId).classList.add('hidden');
+                });
+            });
+
+            document.getElementById('mode-1v1').addEventListener('click', () => {
+                gameMode = '1v1';
+                document.getElementById('mode-1v1').className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400';
+                document.getElementById('mode-training').className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                document.getElementById('menu-mode-badge').textContent = '1V1';
+            });
+
+            document.getElementById('mode-training').addEventListener('click', () => {
+                gameMode = 'training';
+                document.getElementById('mode-training').className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400';
+                document.getElementById('mode-1v1').className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                document.getElementById('menu-mode-badge').textContent = 'TREINO';
+            });
+
+            document.getElementById('btn-toggle-bot').addEventListener('click', () => {
+                hasBot = !hasBot;
+                const btn = document.getElementById('btn-toggle-bot');
+                btn.textContent = hasBot ? 'Bot: ATIVADO' : 'Bot: DESATIVADO';
+                btn.className = hasBot
+                    ? 'flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-emerald-600 text-white border border-emerald-400'
+                    : 'flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                document.getElementById('menu-bot-status').textContent = hasBot ? 'Ativado' : 'Desativado';
+                if (botCar) botCar.mesh.visible = hasActiveBot();
+            });
+
+            document.getElementById('select-difficulty').addEventListener('change', (e) => {
+                difficulty = e.target.value;
+            });
+
+            document.querySelectorAll('.map-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const mapId = btn.getAttribute('data-map');
+                    if (!mapId || !MAP_THEMES[mapId]) return;
+                    selectedMap = mapId;
+                    document.querySelectorAll('.map-btn').forEach(b => {
+                        const active = b.getAttribute('data-map') === selectedMap;
+                        b.className = active
+                            ? 'map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400'
+                            : 'map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                    });
+                    rebuildArenaForMap();
+                });
+            });
+
+            document.getElementById('btn-start-match').addEventListener('click', () => {
+                const quickNickInput = document.getElementById('input-quick-nick');
+                if (quickNickInput) {
+                    const typedNick = (quickNickInput.value || '').trim();
+                    playerNick = typedNick || 'Jogador';
+                    document.getElementById('hud-player-nick').textContent = playerNick;
+                    document.getElementById('input-nick').value = playerNick;
+                    refreshPlayerNickSprite();
+                }
+                startMatch();
+            });
+
+            const syncRoomLabels = () => {
+                const badge = document.getElementById('room-code-badge');
+                const menuStatus = document.getElementById('menu-room-status');
+                const menuRoomsBadge = document.getElementById('menu-rooms-badge');
+                const leaveBtn = document.getElementById('btn-leave-room');
+
+                if (activeRoomCode) {
+                    badge.textContent = activeRoomCode;
+                    menuStatus.textContent = `Sala ${activeRoomCode}`;
+                    menuRoomsBadge.textContent = activeRoomCode;
+                    leaveBtn.classList.remove('hidden');
+                } else {
+                    badge.textContent = 'NENHUMA';
+                    menuStatus.textContent = 'Sem Sala';
+                    menuRoomsBadge.textContent = 'AVULSO';
+                    leaveBtn.classList.add('hidden');
+                }
+            };
+
+            document.getElementById('btn-create-room').addEventListener('click', () => {
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                let code = '';
+                for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+                activeRoomCode = code;
+                document.getElementById('input-room-code').value = code;
+                syncRoomLabels();
+                document.getElementById('room-feedback').textContent = `Sala ${code} criada com sucesso!`;
+            });
+
+            document.getElementById('btn-join-room').addEventListener('click', () => {
+                const rawCode = (document.getElementById('input-room-code').value || '').trim().toUpperCase();
+                if (!rawCode) {
+                    document.getElementById('room-feedback').textContent = 'Digite um codigo de sala para entrar.';
+                    return;
+                }
+                activeRoomCode = rawCode;
+                syncRoomLabels();
+                document.getElementById('room-feedback').textContent = `Conectado na sala ${rawCode}.`;
+            });
+
+            document.getElementById('btn-leave-room').addEventListener('click', () => {
+                activeRoomCode = null;
+                document.getElementById('input-room-code').value = '';
+                syncRoomLabels();
+                document.getElementById('room-feedback').textContent = 'Voce saiu da sala (modo avulso).';
+            });
+
+            document.querySelectorAll('.shop-item-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const cat = btn.getAttribute('data-shop-cat');
+                    const id = btn.getAttribute('data-shop-id');
+                    const price = Number(btn.getAttribute('data-price') || 0);
+                    const feedback = document.getElementById('shop-feedback');
+                    if (!cat || !id) return;
+
+                    if (!Array.isArray(ownedItems[cat])) ownedItems[cat] = [];
+                    const alreadyOwned = ownedItems[cat].includes(id);
+
+                    if (alreadyOwned) {
+                        equippedItems[cat] = id;
+                        applyEquippedVisuals();
+                        refreshShopUI();
+                        if (feedback) feedback.textContent = 'Item equipado com sucesso!';
+                        return;
+                    }
+
+                    if (playerPoints < price) {
+                        if (feedback) feedback.textContent = `Pontos insuficientes! Faltam ${price - playerPoints} PTS.`;
+                        return;
+                    }
+
+                    playerPoints -= price;
+                    ownedItems[cat].push(id);
+                    equippedItems[cat] = id;
+                    updatePointsHUD();
+                    applyEquippedVisuals();
+                    if (feedback) feedback.textContent = 'Compra realizada e item equipado!';
+                });
+            });
+
+            document.getElementById('btn-toggle-rainbow').addEventListener('click', () => {
+                rainbowNick = !rainbowNick;
+                const btn = document.getElementById('btn-toggle-rainbow');
+                btn.textContent = rainbowNick ? 'ATIVADO' : 'DESATIVADO';
+                btn.className = rainbowNick
+                    ? 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950'
+                    : 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase bg-slate-800 text-slate-400';
+                refreshPlayerNickSprite();
+            });
+
+            document.getElementById('platform-pc').addEventListener('click', () => {
+                platform = 'pc';
+                document.getElementById('platform-pc').className = 'py-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400';
+                document.getElementById('platform-mobile').className = 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                applyPlatformUI();
+            });
+
+            document.getElementById('platform-mobile').addEventListener('click', () => {
+                platform = 'mobile';
+                document.getElementById('platform-mobile').className = 'py-3 rounded-xl text-xs font-extrabold uppercase bg-emerald-600 text-white border border-emerald-400';
+                document.getElementById('platform-pc').className = 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                applyPlatformUI();
+            });
+
+            document.getElementById('btn-save-profile').addEventListener('click', () => {
+                const val = (document.getElementById('input-nick').value || '').trim();
+                playerNick = val || 'Jogador';
+                document.getElementById('hud-player-nick').textContent = playerNick;
+                refreshPlayerNickSprite();
+                applyPlatformUI();
+                document.getElementById('modal-profile').classList.add('hidden');
+            });
+
+            document.getElementById('input-nick').addEventListener('input', (e) => {
+                playerNick = e.target.value || 'Jogador';
+                document.getElementById('hud-player-nick').textContent = playerNick;
+                refreshPlayerNickSprite();
+            });
+
+            document.querySelectorAll('.ball-style-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const style = btn.getAttribute('data-ball-style');
+                    if (!style) return;
+                    activeBallStyle = style;
+                    customBallTextureRef = null;
+                    ballTextureRef = createBallTexture(style);
+                    document.querySelectorAll('.ball-style-btn').forEach(b => {
+                        const active = b.getAttribute('data-ball-style') === style;
+                        b.className = active
+                            ? 'ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400'
+                            : 'ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                    });
+                    const labels = { carbon: 'Carbono', plasma: 'Plasma', magma: 'Magma', enzo: '@enzoxd_244' };
+                    document.getElementById('menu-ball-label').textContent = labels[style] || 'Carbono';
+                    applyGraphicsSettings();
+                });
+            });
+
+            document.getElementById('input-ball-image').addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const tex = new THREE.Texture(img);
+                        tex.needsUpdate = true;
+                        customBallTextureRef = tex;
+                        activeBallStyle = 'custom';
+                        ballTextureRef = tex;
+                        applyGraphicsSettings();
+                        document.getElementById('menu-ball-label').textContent = 'Personalizada';
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            const setPreset = (preset) => {
+                if (preset === 'low') {
+                    graphicsSettings.textures = false;
+                    graphicsSettings.shadows = false;
+                    graphicsSettings.domeAndSkyline = false;
+                    graphicsSettings.particles = false;
+                } else if (preset === 'medium') {
+                    graphicsSettings.textures = true;
+                    graphicsSettings.shadows = false;
+                    graphicsSettings.domeAndSkyline = true;
+                    graphicsSettings.particles = true;
+                } else {
+                    graphicsSettings.textures = true;
+                    graphicsSettings.shadows = true;
+                    graphicsSettings.domeAndSkyline = true;
+                    graphicsSettings.particles = true;
+                }
+                applyGraphicsSettings();
+            };
+
+            document.getElementById('preset-low').addEventListener('click', () => setPreset('low'));
+            document.getElementById('preset-medium').addEventListener('click', () => setPreset('medium'));
+            document.getElementById('preset-ultra').addEventListener('click', () => setPreset('ultra'));
+
+            document.getElementById('toggle-textures').addEventListener('click', () => {
+                graphicsSettings.textures = !graphicsSettings.textures;
+                applyGraphicsSettings();
+            });
+            document.getElementById('toggle-shadows').addEventListener('click', () => {
+                graphicsSettings.shadows = !graphicsSettings.shadows;
+                applyGraphicsSettings();
+            });
+            document.getElementById('toggle-dome').addEventListener('click', () => {
+                graphicsSettings.domeAndSkyline = !graphicsSettings.domeAndSkyline;
+                applyGraphicsSettings();
+            });
+            document.getElementById('toggle-particles').addEventListener('click', () => {
+                graphicsSettings.particles = !graphicsSettings.particles;
+                applyGraphicsSettings();
+            });
+
+            document.getElementById('btn-pause').addEventListener('click', () => {
+                if (gameState === 'PLAYING') {
+                    gameState = 'PAUSED';
+                    clearInputs();
+                    document.getElementById('modal-pause').classList.remove('hidden');
+                }
+            });
+            document.getElementById('btn-resume').addEventListener('click', () => {
+                if (gameState === 'PAUSED') {
+                    gameState = 'PLAYING';
+                    document.getElementById('modal-pause').classList.add('hidden');
+                }
+            });
+            document.getElementById('btn-restart-match').addEventListener('click', () => {
+                startMatch();
+            });
+            document.getElementById('btn-exit-menu').addEventListener('click', () => {
+                returnToMenu();
+            });
+            document.getElementById('btn-play-again').addEventListener('click', () => {
+                startMatch();
+            });
+            document.getElementById('btn-gameover-menu').addEventListener('click', () => {
+                returnToMenu();
+            });
+
+            document.getElementById('btn-toggle-cam').addEventListener('click', () => {
+                isBallCam = !isBallCam;
+                document.getElementById('btn-toggle-cam').textContent = isBallCam ? 'Cam Bola [F]' : 'Cam Livre [F]';
+            });
+            document.getElementById('btn-reset-ball').addEventListener('click', () => {
+                resetPositionsForKickoff();
+            });
+            document.getElementById('btn-mute').addEventListener('click', () => {
+                isMuted = !isMuted;
+                document.getElementById('btn-mute').textContent = isMuted ? 'Som: OFF' : 'Som: ON';
+            });
+
+            const bindHold = (id, onDown, onUp) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); onDown(); }, { passive: false });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); onUp(); }, { passive: false });
+                el.addEventListener('touchcancel', (e) => { e.preventDefault(); onUp(); }, { passive: false });
+            };
+
+            bindHold('touch-up', () => { touchThrottle = 1; }, () => { touchThrottle = 0; });
+            bindHold('touch-down', () => { touchThrottle = -1; }, () => { touchThrottle = 0; });
+            bindHold('touch-left', () => { touchSteer = 1; }, () => { touchSteer = 0; });
+            bindHold('touch-right', () => { touchSteer = -1; }, () => { touchSteer = 0; });
+            bindHold('touch-boost', () => { touchBoostPressed = true; }, () => { touchBoostPressed = false; });
+            bindHold('touch-drift', () => { touchDriftPressed = true; }, () => { touchDriftPressed = false; });
+            bindHold('touch-jump', () => {
+                if (!touchJumpPressed && gameState === 'PLAYING' && playerCar) {
+                    triggerJumpOrFlip(playerCar, touchSteer, touchThrottle);
+                }
+                touchJumpPressed = true;
+            }, () => { touchJumpPressed = false; });
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            clock = new THREE.Clock();
+
+            camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.5, 500);
+            camera.position.set(0, 14, 72);
+
+            const canvas = document.getElementById('game-canvas');
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'low-power' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(1);
+            renderer.shadowMap.enabled = graphicsSettings.shadows;
+            renderer.shadowMap.type = THREE.BasicShadowMap;
+
+            const ambientLight = new THREE.AmbientLight(0x8b6f78, 0.42);
+            scene.add(ambientLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xd98a6c, 0x241d2e, 0.34);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xf59e0b, 0.48);
+            dirLight.position.set(85, 38, -70);
+            dirLight.castShadow = graphicsSettings.shadows;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.camera.near = 10;
+            dirLight.shadow.camera.far = 320;
+            const d = 130;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            scene.add(dirLight);
+
+            buildStadium();
+            createBoostPads();
+            createBall();
+
+            playerCar = createCar(0x0284c7, 0xfacc15, true);
+            botCar = createCar(0xea580c, 0x38bdf8, false);
+            applyEquippedVisuals();
+            updatePointsHUD();
+            resetPositionsForKickoff();
+            applyGraphicsSettings();
+            bindEvents();
+            animate();
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
