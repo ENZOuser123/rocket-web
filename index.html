@@ -6,6 +6,7 @@
     <title>ROCKET WEB - 3D</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;600;700;800&display=swap');
 
@@ -108,16 +109,13 @@
     </style>
 </head>
 <body>
-    <!-- 3D Arena Canvas -->
     <canvas id="game-canvas"></canvas>
 
-    <!-- Runtime Error Fallback Banner -->
     <div id="runtime-error-box" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[92%] glass-panel border-red-500/60 rounded-xl p-4 text-sm text-red-200 shadow-2xl">
         <div class="font-bold text-red-400 mb-1">Aviso de Execucao</div>
         <div id="runtime-error-msg" class="break-words text-xs text-slate-200"></div>
     </div>
 
-    <!-- Top Match HUD -->
     <div id="hud-top" class="hidden fixed top-0 left-0 right-0 z-20 p-3 sm:p-5 flex items-start justify-between pointer-events-none">
         <div class="flex items-center gap-2">
             <div class="glass-panel rounded-lg px-3 py-1.5 text-xs font-bold tracking-wider uppercase text-sky-300">
@@ -129,7 +127,6 @@
             </button>
         </div>
 
-        <!-- Scoreboard -->
         <div class="glass-panel rounded-xl px-4 py-2 flex items-center gap-4 shadow-xl">
             <div class="flex items-center gap-2">
                 <span class="text-[11px] font-bold uppercase tracking-wider text-sky-400">Azul</span>
@@ -144,11 +141,9 @@
             </div>
         </div>
 
-        <!-- Compact Points Toast under Scoreboard -->
         <div id="points-toast" class="hidden fixed top-20 sm:top-24 left-1/2 -translate-x-1/2 z-20 px-3.5 py-1 rounded-full glass-panel border border-amber-400/35 text-xs font-extrabold tracking-wider uppercase text-amber-300 shadow-lg pointer-events-none">
         </div>
 
-        <!-- Quick Match Actions -->
         <div class="flex items-center gap-2 pointer-events-auto">
             <button id="btn-toggle-cam" class="glass-panel hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
                 Cam Bola [F]
@@ -162,7 +157,6 @@
         </div>
     </div>
 
-    <!-- Countdown / Goal Banner -->
     <div id="center-announcer" class="hidden fixed inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
         <div id="announcer-main" class="font-rl text-5xl sm:text-7xl font-bold tracking-widest text-white drop-shadow-[0_6px_28px_rgba(0,0,0,0.85)]">
             3
@@ -171,7 +165,6 @@
         </div>
     </div>
 
-    <!-- Bottom Speed & Boost Gauge -->
     <div id="hud-bottom" class="hidden fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 flex items-end gap-3 pointer-events-none">
         <div class="glass-panel rounded-xl px-3.5 py-2 text-right">
             <div id="speed-value" class="font-rl text-3xl sm:text-4xl font-bold text-white leading-none">0</div>
@@ -201,7 +194,6 @@
         </div>
     </div>
 
-    <!-- PC Controls Hint -->
     <div id="pc-controls-hint" class="hidden fixed bottom-4 left-4 z-20 glass-panel rounded-xl px-3.5 py-2.5 text-[11px] text-slate-300 pointer-events-none leading-relaxed">
         <div><strong class="text-white">W/A/S/D:</strong> Dirigir / Ar</div>
         <div><strong class="text-white">Espaco:</strong> Pular / Flip Duplo</div>
@@ -209,15 +201,19 @@
         <div><strong class="text-white">E / Ctrl:</strong> Drift | <strong class="text-white">F:</strong> Cam Bola</div>
     </div>
 
-    <!-- Mobile Touch Controls -->
+    <div id="console-controls-hint" class="hidden fixed bottom-4 left-4 z-20 glass-panel rounded-xl px-3.5 py-2.5 text-[11px] text-slate-300 pointer-events-none leading-relaxed">
+        <div><strong class="text-emerald-300">Modo Console (PS4 / Xbox):</strong> Controle conectado</div>
+        <div><strong class="text-white">L.Esq / R2 / L2:</strong> Dirigir / Acelerar / Ré</div>
+        <div><strong class="text-white">X / A:</strong> Pular / Flip • <strong class="text-white">R1 / RB / B:</strong> Boost</div>
+        <div><strong class="text-white">L1 / LB / Quadrado:</strong> Drift • <strong class="text-white">Y / Triângulo:</strong> Cam Bola</div>
+    </div>
+
     <div id="mobile-controls" class="hidden fixed inset-x-0 bottom-4 z-30 px-4 flex flex-wrap items-end justify-between gap-3 pointer-events-none">
         <div class="flex items-end gap-2.5 pointer-events-auto">
-            <!-- Virtual Analog Stick -->
             <div id="analog-pad" class="analog-pad" aria-label="Analógico Virtual">
                 <div id="analog-stick" class="analog-stick"></div>
             </div>
 
-            <!-- Directional Buttons -->
             <div class="flex flex-col gap-1.5">
                 <button id="touch-up" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">W</button>
                 <div class="flex gap-1.5">
@@ -235,9 +231,7 @@
         </div>
     </div>
 
-    <!-- Main Menu (Rocket League Style Layout) -->
     <div id="main-menu" class="fixed inset-0 z-30 flex flex-col justify-between p-4 sm:p-8 bg-gradient-to-r from-slate-950/90 via-slate-950/45 to-slate-950/75">
-        <!-- Top Bar -->
         <div class="flex items-start justify-between gap-4">
             <div>
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-bold uppercase tracking-widest">
@@ -251,14 +245,12 @@
                 </div>
             </div>
 
-            <!-- Right NEWS Tab -->
             <button id="btn-news-tab" class="glass-panel hover:bg-slate-800/90 rounded-l-xl sm:rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-amber-300 shadow-lg">
                 <span>NEWS</span>
                 <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
             </button>
         </div>
 
-        <!-- Left Vertical Action List -->
         <div class="my-auto max-w-sm w-full flex flex-col gap-2.5">
             <button id="btn-menu-play" class="rl-play-btn w-full text-left px-5 py-3.5 rounded-r-xl font-rl text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white flex items-center justify-between">
                 <span>PLAY</span>
@@ -277,7 +269,7 @@
 
             <button id="btn-menu-rooms" class="rl-menu-btn w-full text-left px-5 py-3 rounded-r-xl font-rl text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-100 flex items-center justify-between">
                 <span>SALAS</span>
-                <span class="text-xs font-sans text-amber-300" id="menu-rooms-badge">AVULSO</span>
+                <span class="text-xs font-sans text-amber-300" id="menu-rooms-badge">BR-SAO</span>
             </button>
 
             <button id="btn-menu-profile" class="rl-menu-btn w-full text-left px-5 py-3 rounded-r-xl font-rl text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-100 flex items-center justify-between">
@@ -291,7 +283,6 @@
             </button>
         </div>
 
-        <!-- Bottom Bar: Player Card + Quick Status -->
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div class="glass-panel rounded-xl px-4 py-2.5 flex items-center gap-3.5 border-l-4 border-l-sky-400">
                 <div class="w-11 h-11 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-700 flex items-center justify-center font-rl text-xl font-bold text-white shadow">
@@ -308,9 +299,9 @@
                         </span>
                     </div>
                     <div class="text-[11px] text-slate-300 mt-0.5">
-                        Mapa: <strong id="menu-map-name" class="text-sky-300">Cyber Arena</strong> •
+                        Mapa: <strong id="menu-map-name" class="text-sky-300">Cyber Tarde</strong> •
                         Bot: <strong id="menu-bot-status" class="text-emerald-300">Ativado</strong> •
-                        <span id="menu-room-status" class="text-amber-300">Sem Sala</span>
+                        <span id="menu-room-status" class="text-amber-300">Servidor BR-SAO</span>
                     </div>
                 </div>
             </div>
@@ -323,7 +314,6 @@
         </div>
     </div>
 
-    <!-- Play Setup Modal (Mode, Bot, Map, Room, Start) -->
     <div id="modal-play" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="glass-panel rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
@@ -331,7 +321,6 @@
                 <button data-close="modal-play" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold">FECHAR</button>
             </div>
 
-            <!-- Mode & Bot -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Seu Nick na Partida</label>
@@ -347,7 +336,6 @@
                 </div>
             </div>
 
-            <!-- Bot & Difficulty -->
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Bot Oponente</label>
                 <div class="flex gap-2">
@@ -362,15 +350,14 @@
                 </div>
             </div>
 
-            <!-- Map Selection -->
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Selecionar Mapa</label>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <button data-map="cyber" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400">Cyber Arena</button>
-                    <button data-map="solar" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Solar Flare</button>
-                    <button data-map="neon" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Neon Grid</button>
-                    <button data-map="sky" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Sky Stadium</button>
-                    <button data-map="oasis" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Oasis Cup</button>
+                    <button data-map="cyber" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400">Cyber Tarde</button>
+                    <button data-map="solar" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Solar Tarde</button>
+                    <button data-map="neon" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Neon Crepusculo</button>
+                    <button data-map="sky" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Sky Entardecer</button>
+                    <button data-map="oasis" class="map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">Oasis Tarde</button>
                 </div>
             </div>
 
@@ -380,29 +367,62 @@
         </div>
     </div>
 
-    <!-- Separate Rooms Menu Modal -->
     <div id="modal-rooms" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="glass-panel rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
-                <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-amber-300">MENU DE SALAS</h2>
+                <div>
+                    <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-amber-300">SERVIDOR BRASIL</h2>
+                    <div id="br-region-status" class="text-[11px] font-bold text-emerald-300">Regiao: BR-SAO (Sao Paulo) • Exclusivo Brasil</div>
+                </div>
                 <button data-close="modal-rooms" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold">FECHAR</button>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900/80 border border-white/10 space-y-3">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-extrabold uppercase tracking-wider text-amber-300">Salas por Codigo</span>
-                    <span id="room-code-badge" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-sky-300">NENHUMA</span>
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-amber-300">Salas Online BR por Codigo</span>
+                    <span id="room-code-badge" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-sky-300">BR-SAO</span>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button id="btn-create-room" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-extrabold uppercase text-white">
-                        + Criar Sala
+                        + Criar Sala BR
                     </button>
-                    <input id="input-room-code" type="text" maxlength="6" placeholder="CODIGO" class="flex-1 min-w-[110px] bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs font-mono uppercase text-white" />
+                    <input id="input-room-code" type="text" maxlength="6" placeholder="CODIGO BR" class="flex-1 min-w-[110px] bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs font-mono uppercase text-white" />
                     <button id="btn-join-room" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-extrabold uppercase text-white">
                         Entrar
                     </button>
                 </div>
-                <div id="room-feedback" class="text-xs text-sky-300"></div>
+                <div id="room-feedback" class="text-xs text-sky-300">Servidor BR-SAO pronto. Crie ou entre em uma sala com codigo.</div>
+
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-white/10 space-y-1.5">
+                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Jogadores na Sala BR</div>
+                    <div id="room-players-list" class="space-y-1 text-xs">
+                        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10">
+                            <span id="room-local-player-label" class="font-bold text-white">Jogador</span>
+                            <span id="room-local-role-badge" class="text-[10px] font-extrabold uppercase text-sky-300">JOGADOR</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="br-admin-panel" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-400/35 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-amber-300">👑 Painel do Administrador</span>
+                        <span class="text-[10px] font-bold text-amber-200">Sorteio Azul / Laranja</span>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-300 mb-1">Escolher Mapa da Partida</label>
+                        <select id="select-br-admin-map" class="w-full bg-slate-950 border border-amber-400/30 rounded-xl px-3 py-2 text-xs font-bold text-white">
+                            <option value="cyber">Cyber Tarde</option>
+                            <option value="solar">Solar Tarde</option>
+                            <option value="neon">Neon Crepusculo</option>
+                            <option value="sky">Sky Entardecer</option>
+                            <option value="oasis">Oasis Tarde</option>
+                        </select>
+                    </div>
+                    <button id="btn-br-admin-start" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 text-xs font-extrabold uppercase tracking-wider text-white shadow">
+                        ▶ Iniciar Partida & Sortear Times
+                    </button>
+                </div>
+
                 <button id="btn-leave-room" class="hidden w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold uppercase text-slate-200">
                     Sair da Sala (Jogar sem Sala)
                 </button>
@@ -410,7 +430,6 @@
         </div>
     </div>
 
-    <!-- Profile Modal (Nick, Rainbow Nick, PC or Mobile) -->
     <div id="modal-profile" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="glass-panel rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
@@ -434,14 +453,20 @@
             </div>
 
             <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Voce joga no PC ou Mobile?</label>
-                <div class="grid grid-cols-2 gap-2.5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Plataforma / Controle</label>
+                <div class="grid grid-cols-3 gap-2">
                     <button id="platform-pc" class="py-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400">
-                        PC (Teclado)
+                        PC
                     </button>
                     <button id="platform-mobile" class="py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">
-                        Mobile (Touch)
+                        Mobile
                     </button>
+                    <button id="platform-console" class="py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10">
+                        Console
+                    </button>
+                </div>
+                <div id="console-pad-status" class="mt-2 text-[11px] text-slate-400">
+                    Suporte a controles PS4 / Xbox / Genérico via USB ou Bluetooth.
                 </div>
             </div>
 
@@ -451,7 +476,6 @@
         </div>
     </div>
 
-    <!-- Garage / Ball Customizer Modal -->
     <div id="modal-garage" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="glass-panel rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
@@ -473,10 +497,8 @@
         </div>
     </div>
 
-    <!-- Shop Modal (Goal Effects, Cars, Speed Effects) -->
     <div id="modal-shop" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="glass-panel rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <!-- Shop Modal (Goal Effects, Cars, Speed Effects) -->
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
                 <div>
                     <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-amber-300">LOJA DE ITENS</h2>
@@ -492,7 +514,6 @@
 
             <div id="shop-feedback" class="text-xs font-semibold text-sky-300 min-h-[16px]"></div>
 
-            <!-- Cars Section -->
             <div class="space-y-2">
                 <div class="text-xs font-extrabold uppercase tracking-wider text-sky-300">Carros</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -519,7 +540,6 @@
                 </div>
             </div>
 
-            <!-- Goal Effects Section -->
             <div class="space-y-2">
                 <div class="text-xs font-extrabold uppercase tracking-wider text-amber-300">Efeitos de Gol</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -546,7 +566,6 @@
                 </div>
             </div>
 
-            <!-- Speed Effects Section -->
             <div class="space-y-2">
                 <div class="text-xs font-extrabold uppercase tracking-wider text-emerald-300">Efeitos de Velocidade</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -575,7 +594,6 @@
         </div>
     </div>
 
-    <!-- Graphics Options Modal -->
     <div id="modal-options" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="glass-panel rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
@@ -610,7 +628,6 @@
         </div>
     </div>
 
-    <!-- Pause Modal -->
     <div id="modal-pause" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="glass-panel rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-3 text-center">
             <h2 class="font-rl text-3xl font-bold uppercase tracking-wider text-white">JOGO PAUSADO</h2>
@@ -620,7 +637,6 @@
         </div>
     </div>
 
-    <!-- End of Match Modal -->
     <div id="modal-gameover" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
         <div class="glass-panel rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-center">
             <div id="gameover-title" class="font-rl text-4xl font-bold uppercase tracking-wider text-amber-300">FIM DE JOGO</div>
@@ -633,7 +649,6 @@
     </div>
 
     <script>
-        // Show runtime errors cleanly instead of silent failure
         window.addEventListener('error', (event) => {
             const box = document.getElementById('runtime-error-box');
             const msg = document.getElementById('runtime-error-msg');
@@ -643,7 +658,6 @@
             }
         });
 
-        // Arena & Physics Constants
         const ARENA = {
             WIDTH: 140,
             LENGTH: 220,
@@ -731,12 +745,12 @@
             DODGE_IMPULSE: 32
         };
 
-        // Game & Player State
         let scene, camera, renderer, clock;
         let gameState = 'MENU';
         let gameMode = '1v1';
         let selectedMap = 'cyber';
         let activeRoomCode = null;
+        let localTeam = 'blue';
         let hasBot = true;
         let difficulty = 'medium';
         let platform = 'pc';
@@ -747,7 +761,20 @@
         let activeBallStyle = 'carbon';
         let customBallTextureRef = null;
 
-        // Points & Shop State
+        const BR_SERVER_PREFIX = 'RW-BR-SAO-';
+        const netState = {
+            peer: null,
+            conn: null,
+            channel: null,
+            clientId: `br-${Math.random().toString(36).slice(2, 8)}`,
+            role: 'offline',
+            remoteNick: '',
+            remoteCtrl: { throttle: 0, steer: 0, boosting: false, drifting: false },
+            lastSyncSent: 0
+        };
+        let consoleJumpWasPressed = false;
+        let consoleCamWasPressed = false;
+
         let playerPoints = 0;
         let ownedItems = {
             car: ['octane_blue'],
@@ -792,7 +819,7 @@
 
         let floorMesh, wallMatRef, domeGroup, skylineGroup;
         let turfTextureRef, hexDomeTextureRef, ballTextureRef;
-        let playerCar, botCar, ball, ballTargetRing, playerNickSprite;
+        let playerCar, botCar, oppNickSprite, ball, ballTargetRing, playerNickSprite;
         let boostPads = [];
         let goalParticles = [];
         let scoreBlue = 0;
@@ -868,13 +895,396 @@
             touchSteer = 0;
             touchThrottle = 0;
             trickSpinAccum = 0;
+            consoleJumpWasPressed = false;
+            consoleCamWasPressed = false;
             if (document.activeElement && typeof document.activeElement.blur === 'function') {
                 document.activeElement.blur();
             }
         }
 
+        function isBrazilRegionAllowed() {
+            const lang = (navigator.language || '').toLowerCase();
+            const langs = Array.isArray(navigator.languages) ? navigator.languages.map(l => String(l).toLowerCase()) : [];
+            let tz = '';
+            try {
+                tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+            } catch (_) {}
+            const isBrTimezone = tz.startsWith('America/') && [
+                'America/Sao_Paulo', 'America/Fortaleza', 'America/Recife', 'America/Bahia',
+                'America/Belem', 'America/Manaus', 'America/Cuiaba', 'America/Campo_Grande',
+                'America/Porto_Velho', 'America/Boa_Vista', 'America/Rio_Branco', 'America/Noronha',
+                'America/Araguaina', 'America/Maceio'
+            ].includes(tz);
+            const isPtBr = lang.includes('pt-br') || langs.some(l => l.includes('pt-br'));
+            return isBrTimezone || isPtBr;
+        }
+
+        function getConnectedGamepad() {
+            if (!navigator.getGamepads) return null;
+            try {
+                const pads = navigator.getGamepads();
+                for (let i = 0; i < pads.length; i++) {
+                    if (pads[i] && pads[i].connected) return pads[i];
+                }
+            } catch (_) {}
+            return null;
+        }
+
+        function pollConsoleGamepad() {
+            const pad = getConnectedGamepad();
+            const statusEl = document.getElementById('console-pad-status');
+            if (!pad) {
+                if (statusEl && platform === 'console') {
+                    statusEl.textContent = 'Nenhum controle detectado. Conecte seu controle PS4/Xbox ou aperte um botão.';
+                }
+                return;
+            }
+            if (statusEl) {
+                const shortId = (pad.id || 'Controle Console').slice(0, 34);
+                statusEl.textContent = `Controle conectado: ${shortId}`;
+            }
+
+            const jumpBtn = Boolean(pad.buttons[0] && pad.buttons[0].pressed);
+            const camBtn = Boolean(pad.buttons[3] && pad.buttons[3].pressed);
+
+            if (jumpBtn && !consoleJumpWasPressed && gameState === 'PLAYING' && playerCar) {
+                const ctrl = getPlayerControl();
+                triggerJumpOrFlip(playerCar, ctrl.steer, ctrl.throttle);
+            }
+            consoleJumpWasPressed = jumpBtn;
+
+            if (camBtn && !consoleCamWasPressed) {
+                isBallCam = !isBallCam;
+                const camBtnEl = document.getElementById('btn-toggle-cam');
+                if (camBtnEl) {
+                    camBtnEl.textContent = isBallCam ? 'Cam Bola [F]' : 'Cam Livre [F]';
+                }
+            }
+            consoleCamWasPressed = camBtn;
+        }
+
+        function hasRemotePeerConnected() {
+            return Boolean(activeRoomCode && netState.conn && netState.conn.open);
+        }
+
         function hasActiveBot() {
+            if (hasRemotePeerConnected()) return true;
             return Boolean(hasBot && botCar && gameMode !== 'training');
+        }
+
+        function refreshOpponentNickSprite() {
+            if (!botCar) return;
+            if (oppNickSprite) {
+                botCar.mesh.remove(oppNickSprite);
+                if (oppNickSprite.material && oppNickSprite.material.map) {
+                    oppNickSprite.material.map.dispose();
+                }
+                if (oppNickSprite.material) {
+                    oppNickSprite.material.dispose();
+                }
+                oppNickSprite = null;
+            }
+            const hasFriendConnected = hasRemotePeerConnected();
+            const oppTeam = localTeam === 'orange' ? 'blue' : 'orange';
+            if (hasFriendConnected) {
+                const friendName = netState.remoteNick || (netState.role === 'host' ? 'Amigo BR' : `${playerNick || 'Jogador'} 👑`);
+                oppNickSprite = createNickSprite(friendName, false, oppTeam);
+            } else {
+                oppNickSprite = createNickSprite('BOT LARANJA', false, oppTeam);
+            }
+            botCar.mesh.add(oppNickSprite);
+        }
+
+        function closeBrConnection() {
+            if (netState.conn) {
+                try { netState.conn.close(); } catch (_) {}
+                netState.conn = null;
+            }
+            if (netState.peer) {
+                try { netState.peer.destroy(); } catch (_) {}
+                netState.peer = null;
+            }
+            if (netState.channel) {
+                try { netState.channel.close(); } catch (_) {}
+                netState.channel = null;
+            }
+            netState.role = 'offline';
+            netState.remoteNick = '';
+            renderRoomPlayersList();
+            refreshPlayerNickSprite();
+            refreshOpponentNickSprite();
+        }
+
+        function renderRoomPlayersList() {
+            const listEl = document.getElementById('room-players-list');
+            const adminPanel = document.getElementById('br-admin-panel');
+            if (!listEl) return;
+
+            const isAdmin = netState.role === 'host' && Boolean(activeRoomCode);
+            const localIsAdmin = isAdmin;
+            const localLabel = localIsAdmin ? `${playerNick || 'Jogador'} 👑` : (playerNick || 'Jogador');
+            const localBadge = localIsAdmin ? 'ADMIN DA SALA' : 'JOGADOR';
+            const localBadgeClass = localIsAdmin ? 'text-amber-300' : 'text-sky-300';
+
+            const rows = [`
+                <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 border ${localIsAdmin ? 'border-amber-400/40' : 'border-white/10'}">
+                    <span class="font-bold text-white">${localLabel}</span>
+                    <span class="text-[10px] font-extrabold uppercase ${localBadgeClass}">${localBadge}</span>
+                </div>
+            `];
+
+            if (activeRoomCode) {
+                if (netState.role === 'guest') {
+                    const adminNick = netState.remoteNick || 'Criador da Sala';
+                    rows.push(`
+                        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 border border-amber-400/40">
+                            <span class="font-bold text-amber-200">${adminNick} 👑</span>
+                            <span class="text-[10px] font-extrabold uppercase text-amber-300">ADMIN DA SALA</span>
+                        </div>
+                    `);
+                } else if (netState.remoteNick) {
+                    rows.push(`
+                        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10">
+                            <span class="font-bold text-sky-200">${netState.remoteNick}</span>
+                            <span class="text-[10px] font-bold uppercase text-emerald-300">Amigo na Sala</span>
+                        </div>
+                    `);
+                }
+            }
+
+            listEl.innerHTML = rows.join('');
+            if (adminPanel) {
+                adminPanel.classList.toggle('hidden', !isAdmin);
+            }
+        }
+
+        function applyTeamAssignment(assignedTeam, mapId) {
+            localTeam = assignedTeam === 'orange' ? 'orange' : 'blue';
+            if (mapId && MAP_THEMES[mapId] && selectedMap !== mapId) {
+                selectedMap = mapId;
+                document.querySelectorAll('.map-btn').forEach(b => {
+                    const active = b.getAttribute('data-map') === selectedMap;
+                    b.className = active
+                        ? 'map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400'
+                        : 'map-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                });
+                rebuildArenaForMap();
+            }
+
+            const oppTeam = localTeam === 'orange' ? 'blue' : 'orange';
+            if (playerCar) {
+                const skin = CAR_SKINS[equippedItems.car] || CAR_SKINS.octane_blue;
+                playerCar.bodyMat.color.setHex(localTeam === 'orange' ? 0xea580c : skin.body);
+                playerCar.accentMat.color.setHex(localTeam === 'orange' ? 0xfacc15 : skin.accent);
+            }
+            if (botCar) {
+                botCar.bodyMat.color.setHex(oppTeam === 'orange' ? 0xea580c : 0x0284c7);
+                botCar.accentMat.color.setHex(oppTeam === 'orange' ? 0xfacc15 : 0x38bdf8);
+            }
+            refreshPlayerNickSprite();
+            refreshOpponentNickSprite();
+        }
+
+        function sendBrMessage(payload) {
+            if (!payload || typeof payload !== 'object') return;
+            const enriched = Object.assign({ senderId: netState.clientId }, payload);
+            if (netState.conn && netState.conn.open) {
+                try { netState.conn.send(enriched); } catch (_) {}
+            }
+            if (netState.channel) {
+                try { netState.channel.postMessage(enriched); } catch (_) {}
+            }
+        }
+
+        function connectBrazilRoom(code, isHost) {
+            closeBrConnection();
+            const fb = document.getElementById('room-feedback');
+            netState.role = isHost ? 'host' : 'guest';
+            renderRoomPlayersList();
+
+            const handleIncomingMessage = (msg) => {
+                if (!msg || typeof msg !== 'object') return;
+                if (msg.senderId && msg.senderId === netState.clientId) return;
+
+                if (msg.type === 'HELLO_BR') {
+                    netState.remoteNick = msg.nick || (isHost ? 'Jogador BR' : 'Criador da Sala');
+                    refreshOpponentNickSprite();
+                    renderRoomPlayersList();
+                    if (fb) {
+                        fb.textContent = isHost
+                            ? `Sala BR ${code}: ${netState.remoteNick} entrou!`
+                            : `Conectado na sala BR ${code} (Admin: ${netState.remoteNick} 👑)!`;
+                    }
+                    if (isHost) {
+                        sendBrMessage({ type: 'HELLO_BR', nick: playerNick, region: 'BR-SAO' });
+                    }
+                } else if (msg.type === 'GUEST_CTRL' && isHost) {
+                    netState.remoteCtrl = Object.assign({
+                        throttle: 0,
+                        steer: 0,
+                        boosting: false,
+                        drifting: false
+                    }, msg.ctrl || {});
+                } else if (msg.type === 'START_BR' && !isHost) {
+                    const chosenMap = (msg.map && MAP_THEMES[msg.map]) ? msg.map : selectedMap;
+                    const myAssignedTeam = msg.guestTeam === 'orange' ? 'orange' : 'blue';
+                    applyTeamAssignment(myAssignedTeam, chosenMap);
+                    const roomsModal = document.getElementById('modal-rooms');
+                    if (roomsModal) roomsModal.classList.add('hidden');
+                    startMatch();
+                    const teamName = myAssignedTeam === 'orange' ? 'TIME LARANJA' : 'TIME AZUL';
+                    showAnnouncer('TIMES SORTEADOS!', `Voce foi para o ${teamName}`, 1800);
+                } else if (msg.type === 'SYNC_BR' && !isHost) {
+                    if (msg.pPos && botCar) {
+                        botCar.pos.fromArray(msg.pPos);
+                        botCar.mesh.position.copy(botCar.pos);
+                    }
+                    if (msg.pYaw !== undefined && botCar) {
+                        botCar.yaw = msg.pYaw;
+                        botCar.mesh.rotation.set(0, botCar.yaw, 0);
+                    }
+                    if (msg.bPos && playerCar) {
+                        const remotePos = new THREE.Vector3().fromArray(msg.bPos);
+                        if (playerCar.pos.distanceTo(remotePos) > 1.8) {
+                            playerCar.pos.lerp(remotePos, 0.55);
+                            playerCar.mesh.position.copy(playerCar.pos);
+                        }
+                    }
+                    if (msg.bYaw !== undefined && playerCar) {
+                        playerCar.yaw = msg.bYaw;
+                    }
+                    if (msg.ballPos && ball) {
+                        ball.pos.fromArray(msg.ballPos);
+                        ball.mesh.position.copy(ball.pos);
+                        if (ballTargetRing) {
+                            ballTargetRing.position.set(ball.pos.x, 0.08, ball.pos.z);
+                        }
+                    }
+                    if (msg.ballVel && ball) ball.vel.fromArray(msg.ballVel);
+                    if (msg.scoreBlue !== undefined) scoreBlue = msg.scoreBlue;
+                    if (msg.scoreOrange !== undefined) scoreOrange = msg.scoreOrange;
+                    if (msg.matchTimeRemaining !== undefined) matchTimeRemaining = msg.matchTimeRemaining;
+                    if (msg.goalEvent && msg.goalEvent.team) {
+                        const gTeam = msg.goalEvent.team;
+                        slowMoTimer = 1.4;
+                        sound.playGoal();
+                        spawnGoalExplosion(gTeam);
+                        if (gTeam === localTeam) {
+                            playerPoints += 100;
+                            updatePointsHUD();
+                        }
+                        showAnnouncer(
+                            'GOLACO!',
+                            gTeam === 'blue' ? 'Time Azul marcou!' : 'Time Laranja marcou!',
+                            2200
+                        );
+                    }
+                    updateScoreHUD();
+                    updateTimerHUD();
+                }
+            };
+
+            if (typeof BroadcastChannel !== 'undefined') {
+                try {
+                    const ch = new BroadcastChannel(`${BR_SERVER_PREFIX}${code}`);
+                    ch.onmessage = (ev) => handleIncomingMessage(ev.data);
+                    netState.channel = ch;
+                    ch.postMessage({
+                        senderId: netState.clientId,
+                        type: 'HELLO_BR',
+                        nick: playerNick,
+                        region: 'BR-SAO'
+                    });
+                } catch (_) {}
+            }
+
+            const isFileProtocol = window.location && window.location.protocol === 'file:';
+            if (isFileProtocol) {
+                if (fb) {
+                    fb.textContent = isHost
+                        ? `Sala BR ${code} criada! (Dica: abra o jogo via servidor HTTP para jogar com amigos em outro PC/celular).`
+                        : `Entrou na sala BR ${code}! (Dica: use servidor HTTP para conectar entre dispositivos).`;
+                }
+                return;
+            }
+
+            if (typeof Peer === 'undefined') {
+                if (fb) fb.textContent = `Sala BR ${code} ativada no servidor BR-SAO.`;
+                renderRoomPlayersList();
+                return;
+            }
+
+            try {
+                const peerId = isHost ? (BR_SERVER_PREFIX + code) : undefined;
+                const peer = peerId ? new Peer(peerId) : new Peer();
+                netState.peer = peer;
+
+                const attachConn = (conn) => {
+                    netState.conn = conn;
+                    refreshOpponentNickSprite();
+                    if (botCar) botCar.mesh.visible = hasActiveBot();
+                    conn.on('open', () => {
+                        conn.send({ senderId: netState.clientId, type: 'HELLO_BR', nick: playerNick, region: 'BR-SAO' });
+                        refreshOpponentNickSprite();
+                        renderRoomPlayersList();
+                        if (fb) {
+                            fb.textContent = isHost
+                                ? `Amigo BR conectado na sala ${code}!`
+                                : `Conectado na sala BR ${code}! Aguardando o host...`;
+                        }
+                    });
+                    conn.on('data', handleIncomingMessage);
+                };
+
+                peer.on('open', () => {
+                    if (!isHost) {
+                        const conn = peer.connect(BR_SERVER_PREFIX + code, { reliable: false });
+                        attachConn(conn);
+                    }
+                });
+
+                peer.on('connection', (conn) => {
+                    if (isHost) attachConn(conn);
+                });
+
+                peer.on('error', () => {
+                    if (fb && !netState.conn) {
+                        fb.textContent = `Sala BR ${code} ativa no servidor BR-SAO.`;
+                    }
+                });
+            } catch (_) {
+                if (fb) fb.textContent = `Sala BR ${code} ativa no servidor BR-SAO.`;
+                renderRoomPlayersList();
+            }
+        }
+
+        function syncBrazilNetwork(now) {
+            const hasActiveChannel = Boolean((netState.conn && netState.conn.open) || netState.channel);
+            if (!hasActiveChannel) return;
+            if (now - netState.lastSyncSent < 30) return;
+            netState.lastSyncSent = now;
+
+            if (netState.role === 'guest') {
+                sendBrMessage({ type: 'GUEST_CTRL', ctrl: getPlayerControl() });
+            } else if (netState.role === 'host' && playerCar && botCar && ball) {
+                const payload = {
+                    type: 'SYNC_BR',
+                    pPos: playerCar.pos.toArray(),
+                    pYaw: playerCar.yaw,
+                    bPos: botCar.pos.toArray(),
+                    bYaw: botCar.yaw,
+                    ballPos: ball.pos.toArray(),
+                    ballVel: ball.vel.toArray(),
+                    scoreBlue,
+                    scoreOrange,
+                    matchTimeRemaining
+                };
+                if (netState.pendingGoalEvent) {
+                    payload.goalEvent = netState.pendingGoalEvent;
+                    netState.pendingGoalEvent = null;
+                }
+                sendBrMessage(payload);
+            }
         }
 
         function getPlayerControl() {
@@ -886,6 +1296,50 @@
                     drifting: touchDriftPressed
                 };
             }
+
+            if (platform === 'console') {
+                const pad = getConnectedGamepad();
+                if (pad) {
+                    const axX = pad.axes && pad.axes.length > 0 ? pad.axes[0] : 0;
+                    const axY = pad.axes && pad.axes.length > 1 ? pad.axes[1] : 0;
+                    const dpadUp = Boolean(pad.buttons[12] && pad.buttons[12].pressed);
+                    const dpadDown = Boolean(pad.buttons[13] && pad.buttons[13].pressed);
+                    const dpadLeft = Boolean(pad.buttons[14] && pad.buttons[14].pressed);
+                    const dpadRight = Boolean(pad.buttons[15] && pad.buttons[15].pressed);
+                    const rtVal = pad.buttons[7] ? pad.buttons[7].value || (pad.buttons[7].pressed ? 1 : 0) : 0;
+                    const ltVal = pad.buttons[6] ? pad.buttons[6].value || (pad.buttons[6].pressed ? 1 : 0) : 0;
+
+                    let throttle = rtVal - ltVal;
+                    if (Math.abs(throttle) < 0.08) {
+                        if (dpadUp || axY < -0.25) throttle += 1;
+                        if (dpadDown || axY > 0.25) throttle -= 1;
+                    }
+
+                    let steer = 0;
+                    if (dpadLeft || axX < -0.2) steer += 1;
+                    if (dpadRight || axX > 0.2) steer -= 1;
+                    if (steer === 0 && Math.abs(axX) > 0.16) {
+                        steer = THREE.MathUtils.clamp(-axX * 1.25, -1, 1);
+                    }
+
+                    const boosting = Boolean(
+                        (pad.buttons[5] && pad.buttons[5].pressed) ||
+                        (pad.buttons[1] && pad.buttons[1].pressed)
+                    );
+                    const drifting = Boolean(
+                        (pad.buttons[4] && pad.buttons[4].pressed) ||
+                        (pad.buttons[2] && pad.buttons[2].pressed)
+                    );
+
+                    return {
+                        throttle: THREE.MathUtils.clamp(throttle, -1, 1),
+                        steer: THREE.MathUtils.clamp(steer, -1, 1),
+                        boosting,
+                        drifting
+                    };
+                }
+            }
+
             let throttle = 0;
             if (keys['KeyW'] || keys['ArrowUp']) throttle += 1;
             if (keys['KeyS'] || keys['ArrowDown']) throttle -= 1;
@@ -901,6 +1355,10 @@
 
         function updateBotAI(dt) {
             if (!hasActiveBot() || !botCar || !ball) return;
+            if (netState.role === 'host' && hasRemotePeerConnected()) {
+                updateCarPhysics(botCar, netState.remoteCtrl, dt);
+                return;
+            }
             const toBallX = ball.pos.x - botCar.pos.x;
             const toBallZ = ball.pos.z - botCar.pos.z;
             const desiredYaw = Math.atan2(-toBallX, -toBallZ);
@@ -950,21 +1408,6 @@
                 }
                 ball.vel.x *= 0.985;
                 ball.vel.z *= 0.985;
-            }
-
-            ball.pos.addScaledVector(ball.vel, dt);
-            ball.vel.multiplyScalar(Math.pow(PHYSICS.BALL_DRAG, dt * 60));
-
-            if (ball.pos.y < r) {
-                ball.pos.y = r;
-                if (ball.vel.y < 0) ball.vel.y = -ball.vel.y * PHYSICS.BALL_RESTITUTION;
-                ball.vel.x *= 0.985;
-                ball.vel.z *= 0.985;
-            } else if (ball.pos.y > ceilingBallY) {
-                ball.pos.y = ceilingBallY;
-                if (ball.vel.y > 0) ball.vel.y = Math.max(0, ball.vel.y * 0.55);
-                ball.vel.x *= 0.992;
-                ball.vel.z *= 0.992;
             }
 
             const wallX = ARENA.WIDTH / 2 - r;
@@ -1098,8 +1541,8 @@
         function applyEquippedVisuals() {
             const carSkin = CAR_SKINS[equippedItems.car] || CAR_SKINS.octane_blue;
             if (playerCar && playerCar.bodyMat && playerCar.accentMat && playerCar.hubMat) {
-                playerCar.bodyMat.color.setHex(carSkin.body);
-                playerCar.accentMat.color.setHex(carSkin.accent);
+                playerCar.bodyMat.color.setHex(localTeam === 'orange' ? 0xea580c : carSkin.body);
+                playerCar.accentMat.color.setHex(localTeam === 'orange' ? 0xfacc15 : carSkin.accent);
                 playerCar.hubMat.color.setHex(carSkin.accent);
             }
 
@@ -1565,7 +2008,9 @@
                     playerNickSprite.material.dispose();
                 }
             }
-            playerNickSprite = createNickSprite(playerNick, rainbowNick, playerCar.team || 'blue');
+            const isRoomAdmin = netState.role === 'host' && Boolean(activeRoomCode);
+            const displayNick = isRoomAdmin ? `${playerNick || 'Jogador'} 👑` : (playerNick || 'Jogador');
+            playerNickSprite = createNickSprite(displayNick, rainbowNick, localTeam);
             playerCar.mesh.add(playerNickSprite);
         }
 
@@ -1576,10 +2021,12 @@
                 ball.mesh.position.copy(ball.pos);
             }
 
+            const playerIsOrange = localTeam === 'orange';
+
             if (playerCar) {
-                playerCar.pos.set(0, 0, -56);
+                playerCar.pos.set(0, 0, playerIsOrange ? 56 : -56);
                 playerCar.vel.set(0, 0, 0);
-                playerCar.yaw = Math.PI;
+                playerCar.yaw = playerIsOrange ? 0 : Math.PI;
                 playerCar.pitch = 0;
                 playerCar.roll = 0;
                 playerCar.boost = 100;
@@ -1592,9 +2039,9 @@
             }
 
             if (botCar) {
-                botCar.pos.set(0, 0, 56);
+                botCar.pos.set(0, 0, playerIsOrange ? -56 : 56);
                 botCar.vel.set(0, 0, 0);
-                botCar.yaw = 0;
+                botCar.yaw = playerIsOrange ? Math.PI : 0;
                 botCar.pitch = 0;
                 botCar.roll = 0;
                 botCar.boost = 100;
@@ -1710,8 +2157,8 @@
                 playerNickSprite = createNickSprite(playerNick, rainbowNick, 'blue');
                 root.add(playerNickSprite);
             } else {
-                const botNickSprite = createNickSprite('BOT LARANJA', false, 'orange');
-                root.add(botNickSprite);
+                oppNickSprite = createNickSprite('BOT LARANJA', false, 'orange');
+                root.add(oppNickSprite);
             }
 
             return carObj;
@@ -1974,13 +2421,13 @@
             sound.playGoal();
             spawnGoalExplosion(goalTeam);
 
-            if (goalTeam === 'blue') {
+            if (goalTeam === localTeam) {
                 playerPoints += 100;
                 updatePointsHUD();
             }
 
             if (gameMode === 'training') {
-                const subMsg = goalTeam === 'blue' ? '+100 PTS POR GOL! Reiniciando...' : 'Reiniciando bola...';
+                const subMsg = goalTeam === localTeam ? '+100 PTS POR GOL! Reiniciando...' : 'Reiniciando bola...';
                 showAnnouncer('GOL NO TREINO!', subMsg, 1500);
                 setTimeout(() => {
                     if (gameState === 'GOAL_CELEBRATION') {
@@ -1995,9 +2442,14 @@
             else scoreOrange++;
             updateScoreHUD();
 
+            if (netState.role === 'host') {
+                netState.pendingGoalEvent = { team: goalTeam, at: performance.now() };
+                syncBrazilNetwork(performance.now());
+            }
+
             showAnnouncer(
                 'GOLACO!',
-                goalTeam === 'blue' ? 'Time Azul marcou! (+100 PTS)' : 'Time Laranja marcou!',
+                goalTeam === 'blue' ? 'Time Azul marcou!' : 'Time Laranja marcou!',
                 2200
             );
 
@@ -2149,7 +2601,8 @@
 
             const roomBadge = document.getElementById('hud-room-badge');
             if (activeRoomCode) {
-                roomBadge.textContent = `SALA ${activeRoomCode}`;
+                const teamLabel = localTeam === 'orange' ? 'LARANJA' : 'AZUL';
+                roomBadge.textContent = `BR ${activeRoomCode} • ${teamLabel}`;
                 roomBadge.classList.remove('hidden');
             } else {
                 roomBadge.classList.add('hidden');
@@ -2172,6 +2625,7 @@
             document.getElementById('hud-top').classList.add('hidden');
             document.getElementById('hud-bottom').classList.add('hidden');
             document.getElementById('pc-controls-hint').classList.add('hidden');
+            document.getElementById('console-controls-hint').classList.add('hidden');
             document.getElementById('mobile-controls').classList.add('hidden');
             document.getElementById('modal-pause').classList.add('hidden');
             document.getElementById('modal-gameover').classList.add('hidden');
@@ -2179,8 +2633,11 @@
         }
 
         function applyPlatformUI() {
-            const showMobileControls = platform === 'mobile' && gameState !== 'PAUSED' && gameState !== 'GAMEOVER';
+            const isActiveMatch = gameState !== 'PAUSED' && gameState !== 'GAMEOVER' && gameState !== 'MENU';
+            const showMobileControls = platform === 'mobile' && isActiveMatch;
+            const showConsoleHint = platform === 'console' && isActiveMatch;
             document.getElementById('pc-controls-hint').classList.add('hidden');
+            document.getElementById('console-controls-hint').classList.toggle('hidden', !showConsoleHint);
             document.getElementById('mobile-controls').classList.toggle('hidden', !showMobileControls);
             document.getElementById('menu-platform-label').textContent = platform.toUpperCase();
         }
@@ -2319,6 +2776,7 @@
         function animate() {
             requestAnimationFrame(animate);
 
+            const now = performance.now();
             const rawDt = clock ? clock.getDelta() : 0.016;
             let dt = Math.min(rawDt, 0.05);
 
@@ -2327,8 +2785,12 @@
                 dt *= 0.35;
             }
 
+            if (platform === 'console') {
+                pollConsoleGamepad();
+            }
+
             if (playerNickSprite && rainbowNick) {
-                const hue = (performance.now() * 0.12) % 360;
+                const hue = (now * 0.12) % 360;
                 playerNickSprite.material.color.setHSL(hue / 360, 0.9, 0.65);
             } else if (playerNickSprite) {
                 playerNickSprite.material.color.setHex(0xffffff);
@@ -2337,10 +2799,21 @@
             if (gameState === 'PLAYING') {
                 const ctrl = getPlayerControl();
                 updateCarPhysics(playerCar, ctrl, dt);
-                updateBotAI(dt);
-                updateBallAndCollisions(dt);
+                if (netState.role !== 'guest') {
+                    updateBotAI(dt);
+                    updateBallAndCollisions(dt);
+                } else if (ball) {
+                    ball.mesh.position.copy(ball.pos);
+                    if (ballTargetRing) {
+                        ballTargetRing.position.set(ball.pos.x, 0.08, ball.pos.z);
+                    }
+                }
+                syncBrazilNetwork(now);
             } else if (gameState === 'GOAL_CELEBRATION') {
-                updateBallAndCollisions(dt);
+                if (netState.role !== 'guest') {
+                    updateBallAndCollisions(dt);
+                }
+                syncBrazilNetwork(now);
             }
 
             updateGoalParticles(dt);
@@ -2418,6 +2891,9 @@
                 document.getElementById('modal-shop').classList.remove('hidden');
             });
             document.getElementById('btn-menu-rooms').addEventListener('click', () => {
+                renderRoomPlayersList();
+                const adminMapSel = document.getElementById('select-br-admin-map');
+                if (adminMapSel) adminMapSel.value = selectedMap;
                 document.getElementById('modal-rooms').classList.remove('hidden');
             });
             document.getElementById('btn-menu-profile').addEventListener('click', () => {
@@ -2502,16 +2978,27 @@
 
                 if (activeRoomCode) {
                     badge.textContent = activeRoomCode;
-                    menuStatus.textContent = `Sala ${activeRoomCode}`;
+                    menuStatus.textContent = `BR-SAO • ${activeRoomCode}`;
                     menuRoomsBadge.textContent = activeRoomCode;
                     leaveBtn.classList.remove('hidden');
                 } else {
-                    badge.textContent = 'NENHUMA';
-                    menuStatus.textContent = 'Sem Sala';
-                    menuRoomsBadge.textContent = 'AVULSO';
+                    badge.textContent = 'BR-SAO';
+                    menuStatus.textContent = 'Servidor BR-SAO';
+                    menuRoomsBadge.textContent = 'BR-SAO';
                     leaveBtn.classList.add('hidden');
                 }
+                renderRoomPlayersList();
+                refreshPlayerNickSprite();
+                refreshOpponentNickSprite();
             };
+
+            const brAllowed = isBrazilRegionAllowed();
+            const regionStatusEl = document.getElementById('br-region-status');
+            if (regionStatusEl) {
+                regionStatusEl.textContent = brAllowed
+                    ? 'Regiao: BR-SAO (Sao Paulo) • Exclusivo Brasil (Ativo)'
+                    : 'Regiao: BR-SAO (Sao Paulo) • Exclusivo Brasil';
+            }
 
             document.getElementById('btn-create-room').addEventListener('click', () => {
                 const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -2520,25 +3007,50 @@
                 activeRoomCode = code;
                 document.getElementById('input-room-code').value = code;
                 syncRoomLabels();
-                document.getElementById('room-feedback').textContent = `Sala ${code} criada com sucesso!`;
+                document.getElementById('room-feedback').textContent = `Sala BR ${code} criada! Voce e o Admin 👑.`;
+                connectBrazilRoom(code, true);
             });
 
             document.getElementById('btn-join-room').addEventListener('click', () => {
                 const rawCode = (document.getElementById('input-room-code').value || '').trim().toUpperCase();
                 if (!rawCode) {
-                    document.getElementById('room-feedback').textContent = 'Digite um codigo de sala para entrar.';
+                    document.getElementById('room-feedback').textContent = 'Digite um codigo de sala BR para entrar.';
                     return;
                 }
                 activeRoomCode = rawCode;
                 syncRoomLabels();
-                document.getElementById('room-feedback').textContent = `Conectado na sala ${rawCode}.`;
+                document.getElementById('room-feedback').textContent = `Conectando na sala BR ${rawCode} (BR-SAO)...`;
+                connectBrazilRoom(rawCode, false);
+            });
+
+            document.getElementById('btn-br-admin-start').addEventListener('click', () => {
+                if (!(netState.role === 'host' && activeRoomCode)) return;
+                const adminMapSel = document.getElementById('select-br-admin-map');
+                const chosenMap = adminMapSel && MAP_THEMES[adminMapSel.value] ? adminMapSel.value : selectedMap;
+                const hostTeam = Math.random() < 0.5 ? 'blue' : 'orange';
+                const guestTeam = hostTeam === 'blue' ? 'orange' : 'blue';
+
+                applyTeamAssignment(hostTeam, chosenMap);
+                sendBrMessage({
+                    type: 'START_BR',
+                    map: chosenMap,
+                    guestTeam
+                });
+
+                document.getElementById('modal-rooms').classList.add('hidden');
+                startMatch();
+                const teamName = hostTeam === 'orange' ? 'TIME LARANJA' : 'TIME AZUL';
+                showAnnouncer('TIMES SORTEADOS!', `Voce foi para o ${teamName}`, 1800);
             });
 
             document.getElementById('btn-leave-room').addEventListener('click', () => {
                 activeRoomCode = null;
+                localTeam = 'blue';
+                applyEquippedVisuals();
+                closeBrConnection();
                 document.getElementById('input-room-code').value = '';
                 syncRoomLabels();
-                document.getElementById('room-feedback').textContent = 'Voce saiu da sala (modo avulso).';
+                document.getElementById('room-feedback').textContent = 'Voce saiu da sala BR.';
             });
 
             document.querySelectorAll('.shop-item-btn').forEach(btn => {
@@ -2584,25 +3096,31 @@
                 refreshPlayerNickSprite();
             });
 
-            document.getElementById('platform-pc').addEventListener('click', () => {
-                platform = 'pc';
-                document.getElementById('platform-pc').className = 'py-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400';
-                document.getElementById('platform-mobile').className = 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+            const setPlatformMode = (nextPlatform) => {
+                platform = nextPlatform;
+                document.getElementById('platform-pc').className = nextPlatform === 'pc'
+                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400'
+                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                document.getElementById('platform-mobile').className = nextPlatform === 'mobile'
+                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-emerald-600 text-white border border-emerald-400'
+                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                document.getElementById('platform-console').className = nextPlatform === 'console'
+                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-amber-600 text-white border border-amber-400'
+                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                pollConsoleGamepad();
                 applyPlatformUI();
-            });
+            };
 
-            document.getElementById('platform-mobile').addEventListener('click', () => {
-                platform = 'mobile';
-                document.getElementById('platform-mobile').className = 'py-3 rounded-xl text-xs font-extrabold uppercase bg-emerald-600 text-white border border-emerald-400';
-                document.getElementById('platform-pc').className = 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
-                applyPlatformUI();
-            });
+            document.getElementById('platform-pc').addEventListener('click', () => setPlatformMode('pc'));
+            document.getElementById('platform-mobile').addEventListener('click', () => setPlatformMode('mobile'));
+            document.getElementById('platform-console').addEventListener('click', () => setPlatformMode('console'));
 
             document.getElementById('btn-save-profile').addEventListener('click', () => {
                 const val = (document.getElementById('input-nick').value || '').trim();
                 playerNick = val || 'Jogador';
                 document.getElementById('hud-player-nick').textContent = playerNick;
                 refreshPlayerNickSprite();
+                renderRoomPlayersList();
                 applyPlatformUI();
                 document.getElementById('modal-profile').classList.add('hidden');
             });
@@ -2611,6 +3129,7 @@
                 playerNick = e.target.value || 'Jogador';
                 document.getElementById('hud-player-nick').textContent = playerNick;
                 refreshPlayerNickSprite();
+                renderRoomPlayersList();
             });
 
             document.querySelectorAll('.ball-style-btn').forEach(btn => {
@@ -2860,6 +3379,7 @@
             updatePointsHUD();
             resetPositionsForKickoff();
             applyGraphicsSettings();
+            renderRoomPlayersList();
             bindEvents();
             animate();
         }
