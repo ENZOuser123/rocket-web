@@ -291,8 +291,8 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <span id="hud-player-nick" class="font-bold text-sm sm:text-base text-white">Jogador</span>
-                        <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-300/30">
-                            LVL 24
+                        <span id="hud-player-level" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-300/30">
+                            LVL 1
                         </span>
                         <span id="hud-player-points" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 border border-emerald-300/30">
                             0 PTS
@@ -734,7 +734,7 @@
             GRAVITY: -38,
             BALL_RADIUS: 4.2,
             BALL_RESTITUTION: 0.78,
-            BALL_DRAG: 0.996,
+            BALL_DRAG: 0.9985,
             CAR_MAX_SPEED: 54,
             CAR_BOOST_SPEED: 76,
             CAR_ACCEL: 86,
@@ -1023,6 +1023,12 @@
                     if (['pc', 'mobile', 'console'].includes(saved.platform)) {
                         platform = saved.platform;
                     }
+                    if (typeof saved.level === 'number' && saved.level >= 1) {
+                        playerLevel = Math.floor(saved.level);
+                    }
+                    if (typeof saved.points === 'number' && saved.points >= 0) {
+                        playerPoints = Math.floor(saved.points);
+                    }
                 }
             } catch (_) {}
         }
@@ -1032,7 +1038,9 @@
                 localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify({
                     nick: playerNick,
                     rainbowNick,
-                    platform
+                    platform,
+                    level: playerLevel,
+                    points: playerPoints
                 }));
             } catch (_) {}
         }
@@ -1091,6 +1099,7 @@
             netState.targetOppPos = null;
             netState.targetOppYaw = null;
             netState.targetBallPos = null;
+            if (botCar) botCar.mesh.visible = hasActiveBot();
             renderRoomPlayersList();
             refreshPlayerNickSprite();
             refreshOpponentNickSprite();
@@ -1181,6 +1190,7 @@
 
                 if (msg.type === 'HELLO_BR') {
                     netState.remoteNick = msg.nick || (isHost ? 'Jogador BR' : 'Criador da Sala');
+                    if (botCar) botCar.mesh.visible = hasActiveBot();
                     refreshOpponentNickSprite();
                     renderRoomPlayersList();
                     if (fb) {
@@ -1504,15 +1514,15 @@
                 if (ball.pos.y < r) {
                     ball.pos.y = r;
                     if (ball.vel.y < 0) ball.vel.y = -ball.vel.y * PHYSICS.BALL_RESTITUTION;
-                    ball.vel.x *= 0.985;
-                    ball.vel.z *= 0.985;
+                    ball.vel.x *= 0.994;
+                    ball.vel.z *= 0.994;
                 } else if (ball.pos.y > ceilingBallY) {
                     ball.pos.y = ceilingBallY;
                     if (ball.vel.y > 0) {
                         ball.vel.y = ballHorizSpeed > 14 ? 0 : -Math.abs(ball.vel.y) * 0.45;
                     }
-                    ball.vel.x *= 0.985;
-                    ball.vel.z *= 0.985;
+                    ball.vel.x *= 0.994;
+                    ball.vel.z *= 0.994;
                 }
 
                 const wallX = ARENA.WIDTH / 2 - r;
@@ -1641,8 +1651,8 @@
             const calculatedLevel = 1 + Math.floor(Math.max(0, playerPoints) / 250);
             if (calculatedLevel > playerLevel) {
                 playerLevel = calculatedLevel;
-                saveProfileToStorage();
             }
+            saveProfileToStorage();
 
             const lvlStr = `LVL ${playerLevel}`;
             const ptsStr = `${playerPoints} PTS`;
@@ -3329,55 +3339,161 @@
                 document.getElementById('btn-mute').textContent = isMuted ? 'Som: OFF' : 'Som: ON';
             });
 
-            const bindHold = (id, onDown, onUp) => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                el.addEventListener('touchstart', (e) => { e.preventDefault(); onDown(); }, { passive: false });
-                el.addEventListener('touchend', (e) => { e.preventDefault(); onUp(); }, { passive: false });
-                el.addEventListener('touchcancel', (e) => { e.preventDefault(); onUp(); }, { passive: false });
+            document.querySelectorAll('.ball-style-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const style = btn.getAttribute('data-ball-style') || 'carbon';
+                    activeBallStyle = style;
+                    customBallTextureRef = null;
+                    ballTextureRef = createBallTexture(style);
+                    if (ball && ball.mesh && ball.mesh.material) {
+                        ball.mesh.material.map = graphicsSettings.textures ? ballTextureRef : null;
+                        ball.mesh.material.needsUpdate = true;
+                    }
+                    document.querySelectorAll('.ball-style-btn').forEach(b => {
+                        const active = b.getAttribute('data-ball-style') === style;
+                        b.className = active
+                            ? 'ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400'
+                            : 'ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                    });
+                    const labelMap = { carbon: 'Carbono', plasma: 'Plasma', magma: 'Magma', enzo: '@enzoxd_244' };
+                    const menuBallLabel = document.getElementById('menu-ball-label');
+                    if (menuBallLabel) menuBallLabel.textContent = labelMap[style] || 'Carbono';
+                });
+            });
+
+            const inputBallImg = document.getElementById('input-ball-image');
+            if (inputBallImg) {
+                inputBallImg.addEventListener('change', (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const tex = new THREE.Texture(img);
+                            tex.needsUpdate = true;
+                            customBallTextureRef = tex;
+                            ballTextureRef = tex;
+                            if (ball && ball.mesh && ball.mesh.material) {
+                                ball.mesh.material.map = graphicsSettings.textures ? tex : null;
+                                ball.mesh.material.needsUpdate = true;
+                            }
+                            const menuBallLabel = document.getElementById('menu-ball-label');
+                            if (menuBallLabel) menuBallLabel.textContent = 'Custom';
+                        };
+                        img.src = String(reader.result || '');
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            const setGraphicsPreset = (preset) => {
+                if (preset === 'low') {
+                    graphicsSettings.textures = false;
+                    graphicsSettings.shadows = false;
+                    graphicsSettings.domeAndSkyline = false;
+                    graphicsSettings.particles = false;
+                } else if (preset === 'medium') {
+                    graphicsSettings.textures = true;
+                    graphicsSettings.shadows = false;
+                    graphicsSettings.domeAndSkyline = true;
+                    graphicsSettings.particles = true;
+                } else {
+                    graphicsSettings.textures = true;
+                    graphicsSettings.shadows = true;
+                    graphicsSettings.domeAndSkyline = true;
+                    graphicsSettings.particles = true;
+                }
+                ['low', 'medium', 'ultra'].forEach(p => {
+                    const el = document.getElementById(`preset-${p}`);
+                    if (!el) return;
+                    el.className = p === preset
+                        ? 'py-2 rounded-xl text-xs font-extrabold uppercase bg-amber-600 text-white border border-amber-400'
+                        : 'py-2 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-200 border border-white/10';
+                });
+                applyGraphicsSettings();
             };
 
-            bindHold('touch-up', () => { touchThrottle = 1; }, () => { touchThrottle = 0; });
-            bindHold('touch-down', () => { touchThrottle = -1; }, () => { touchThrottle = 0; });
-            bindHold('touch-left', () => { touchSteer = 1; }, () => { touchSteer = 0; });
-            bindHold('touch-right', () => { touchSteer = -1; }, () => { touchSteer = 0; });
-            bindHold('touch-boost', () => { touchBoostPressed = true; }, () => { touchBoostPressed = false; });
-            bindHold('touch-drift', () => { touchDriftPressed = true; }, () => { touchDriftPressed = false; });
-            bindHold('touch-jump', () => {
-                if (!touchJumpPressed && gameState === 'PLAYING' && playerCar) {
-                    if (netState.role === 'guest') {
-                        sendBrMessage({ type: 'GUEST_JUMP' });
+            document.getElementById('preset-low').addEventListener('click', () => setGraphicsPreset('low'));
+            document.getElementById('preset-medium').addEventListener('click', () => setGraphicsPreset('medium'));
+            document.getElementById('preset-ultra').addEventListener('click', () => setGraphicsPreset('ultra'));
+
+            document.getElementById('toggle-textures').addEventListener('click', () => {
+                graphicsSettings.textures = !graphicsSettings.textures;
+                applyGraphicsSettings();
+            });
+            document.getElementById('toggle-shadows').addEventListener('click', () => {
+                graphicsSettings.shadows = !graphicsSettings.shadows;
+                applyGraphicsSettings();
+            });
+            document.getElementById('toggle-dome').addEventListener('click', () => {
+                graphicsSettings.domeAndSkyline = !graphicsSettings.domeAndSkyline;
+                applyGraphicsSettings();
+            });
+            document.getElementById('toggle-particles').addEventListener('click', () => {
+                graphicsSettings.particles = !graphicsSettings.particles;
+                applyGraphicsSettings();
+            });
+
+            const bindHoldButton = (id, onDown, onUp) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    onDown();
+                });
+                el.addEventListener('pointerup', (e) => {
+                    e.preventDefault();
+                    onUp();
+                });
+                el.addEventListener('pointerleave', onUp);
+                el.addEventListener('pointercancel', onUp);
+            };
+
+            bindHoldButton('touch-up', () => { touchThrottle = 1; }, () => { if (touchThrottle > 0) touchThrottle = 0; });
+            bindHoldButton('touch-down', () => { touchThrottle = -1; }, () => { if (touchThrottle < 0) touchThrottle = 0; });
+            bindHoldButton('touch-left', () => { touchSteer = 1; }, () => { if (touchSteer > 0) touchSteer = 0; });
+            bindHoldButton('touch-right', () => { touchSteer = -1; }, () => { if (touchSteer < 0) touchSteer = 0; });
+            bindHoldButton('touch-boost', () => { touchBoostPressed = true; }, () => { touchBoostPressed = false; });
+            bindHoldButton('touch-drift', () => { touchDriftPressed = true; }, () => { touchDriftPressed = false; });
+
+            const touchJumpBtn = document.getElementById('touch-jump');
+            if (touchJumpBtn) {
+                touchJumpBtn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    touchJumpPressed = true;
+                    if (gameState === 'PLAYING' && playerCar) {
+                        const ctrl = getPlayerControl();
+                        if (netState.role === 'guest') {
+                            sendBrMessage({ type: 'GUEST_JUMP' });
+                        }
+                        triggerJumpOrFlip(playerCar, ctrl.steer, ctrl.throttle);
                     }
-                    triggerJumpOrFlip(playerCar, touchSteer, touchThrottle);
-                }
-                touchJumpPressed = true;
-            }, () => { touchJumpPressed = false; });
+                });
+                touchJumpBtn.addEventListener('pointerup', () => { touchJumpPressed = false; });
+                touchJumpBtn.addEventListener('pointercancel', () => { touchJumpPressed = false; });
+            }
 
             const analogPad = document.getElementById('analog-pad');
             const analogStick = document.getElementById('analog-stick');
             if (analogPad && analogStick) {
-                const maxRadius = 34;
                 let activeAnalogPointerId = null;
+                const maxRadius = 34;
 
                 const updateAnalogFromPoint = (clientX, clientY) => {
                     const rect = analogPad.getBoundingClientRect();
-                    const cx = rect.left + rect.width / 2;
-                    const cy = rect.top + rect.height / 2;
-                    let dx = clientX - cx;
-                    let dy = clientY - cy;
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    let dx = clientX - centerX;
+                    let dy = clientY - centerY;
                     const dist = Math.hypot(dx, dy);
-
-                    if (dist > maxRadius && dist > 0) {
+                    if (dist > maxRadius) {
                         dx = (dx / dist) * maxRadius;
                         dy = (dy / dist) * maxRadius;
                     }
-
-                    analogStick.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
-
-                    const normX = dx / maxRadius;
-                    const normY = dy / maxRadius;
-                    touchSteer = Math.abs(normX) > 0.14 ? THREE.MathUtils.clamp(-normX, -1, 1) : 0;
-                    touchThrottle = Math.abs(normY) > 0.14 ? THREE.MathUtils.clamp(-normY, -1, 1) : 0;
+                    analogStick.style.transform = `translate(${dx}px, ${dy}px)`;
+                    touchSteer = THREE.MathUtils.clamp(-dx / maxRadius, -1, 1);
+                    touchThrottle = THREE.MathUtils.clamp(-dy / maxRadius, -1, 1);
                 };
 
                 const resetAnalog = () => {
@@ -3390,9 +3506,7 @@
                 analogPad.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
                     activeAnalogPointerId = e.pointerId;
-                    if (analogPad.setPointerCapture) {
-                        try { analogPad.setPointerCapture(e.pointerId); } catch (_) {}
-                    }
+                    analogPad.setPointerCapture(e.pointerId);
                     updateAnalogFromPoint(e.clientX, e.clientY);
                 });
 
