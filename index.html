@@ -771,6 +771,7 @@
             remoteNick: '',
             remoteCtrl: { throttle: 0, steer: 0, boosting: false, drifting: false },
             lastSyncSent: 0,
+            lastGuestHitSent: 0,
             pendingGoalEvent: null,
             targetOppPos: null,
             targetOppYaw: null,
@@ -1132,6 +1133,14 @@
                         boosting: false,
                         drifting: false
                     }, msg.ctrl || {});
+                } else if (msg.type === 'GUEST_BALL_HIT' && isHost && ball) {
+                    if (msg.ballPos) {
+                        ball.pos.fromArray(msg.ballPos);
+                        ball.mesh.position.copy(ball.pos);
+                    }
+                    if (msg.ballVel) {
+                        ball.vel.fromArray(msg.ballVel);
+                    }
                 } else if (msg.type === 'START_BR' && !isHost) {
                     const chosenMap = (msg.map && MAP_THEMES[msg.map]) ? msg.map : selectedMap;
                     const myAssignedTeam = msg.guestTeam === 'orange' ? 'orange' : 'blue';
@@ -1395,98 +1404,107 @@
             if (!ball) return;
             const r = PHYSICS.BALL_RADIUS;
             const ceilingBallY = ARENA.HEIGHT - r;
-            const nearCeiling = ball.pos.y >= ceilingBallY - 0.5;
-            const ballHorizSpeed = Math.hypot(ball.vel.x, ball.vel.z);
+            const steps = 3;
+            const subDt = dt / steps;
+            const activeCars = hasActiveBot() ? [playerCar, botCar] : [playerCar];
 
-            if (nearCeiling && ballHorizSpeed > 14 && ball.vel.y > -1.5) {
-                ball.vel.y = Math.max(ball.vel.y, 0);
-            } else {
-                ball.vel.y += PHYSICS.GRAVITY * 1.15 * dt;
-            }
+            for (let s = 0; s < steps; s++) {
+                const nearCeiling = ball.pos.y >= ceilingBallY - 0.5;
+                const ballHorizSpeed = Math.hypot(ball.vel.x, ball.vel.z);
 
-            ball.pos.addScaledVector(ball.vel, dt);
-            ball.vel.multiplyScalar(Math.pow(PHYSICS.BALL_DRAG, dt * 60));
-
-            if (ball.pos.y < r) {
-                ball.pos.y = r;
-                if (ball.vel.y < 0) ball.vel.y = -ball.vel.y * PHYSICS.BALL_RESTITUTION;
-                ball.vel.x *= 0.985;
-                ball.vel.z *= 0.985;
-            } else if (ball.pos.y > ceilingBallY) {
-                ball.pos.y = ceilingBallY;
-                if (ball.vel.y > 0) {
-                    ball.vel.y = ballHorizSpeed > 14 ? 0 : -Math.abs(ball.vel.y) * 0.45;
+                if (nearCeiling && ballHorizSpeed > 14 && ball.vel.y > -1.5) {
+                    ball.vel.y = Math.max(ball.vel.y, 0);
+                } else {
+                    ball.vel.y += PHYSICS.GRAVITY * 1.15 * subDt;
                 }
-                ball.vel.x *= 0.985;
-                ball.vel.z *= 0.985;
-            }
 
-            const wallX = ARENA.WIDTH / 2 - r;
-            if (ball.pos.x < -wallX) {
-                ball.pos.x = -wallX;
-                ball.vel.x = Math.abs(ball.vel.x) * PHYSICS.BALL_RESTITUTION;
-            } else if (ball.pos.x > wallX) {
-                ball.pos.x = wallX;
-                ball.vel.x = -Math.abs(ball.vel.x) * PHYSICS.BALL_RESTITUTION;
-            }
+                ball.pos.addScaledVector(ball.vel, subDt);
+                ball.vel.multiplyScalar(Math.pow(PHYSICS.BALL_DRAG, subDt * 60));
 
-            const wallZ = ARENA.LENGTH / 2 - r;
-            const insideGoalWidth = Math.abs(ball.pos.x) < ARENA.GOAL_WIDTH / 2 - r * 0.4;
-            const insideGoalHeight = ball.pos.y < ARENA.GOAL_HEIGHT - r * 0.35;
-
-            if (ball.pos.z < -wallZ) {
-                if (!(insideGoalWidth && insideGoalHeight)) {
-                    ball.pos.z = -wallZ;
-                    ball.vel.z = Math.abs(ball.vel.z) * PHYSICS.BALL_RESTITUTION;
+                if (ball.pos.y < r) {
+                    ball.pos.y = r;
+                    if (ball.vel.y < 0) ball.vel.y = -ball.vel.y * PHYSICS.BALL_RESTITUTION;
+                    ball.vel.x *= 0.985;
+                    ball.vel.z *= 0.985;
+                } else if (ball.pos.y > ceilingBallY) {
+                    ball.pos.y = ceilingBallY;
+                    if (ball.vel.y > 0) {
+                        ball.vel.y = ballHorizSpeed > 14 ? 0 : -Math.abs(ball.vel.y) * 0.45;
+                    }
+                    ball.vel.x *= 0.985;
+                    ball.vel.z *= 0.985;
                 }
-            } else if (ball.pos.z > wallZ) {
-                if (!(insideGoalWidth && insideGoalHeight)) {
-                    ball.pos.z = wallZ;
-                    ball.vel.z = -Math.abs(ball.vel.z) * PHYSICS.BALL_RESTITUTION;
+
+                const wallX = ARENA.WIDTH / 2 - r;
+                if (ball.pos.x < -wallX) {
+                    ball.pos.x = -wallX;
+                    ball.vel.x = Math.abs(ball.vel.x) * PHYSICS.BALL_RESTITUTION;
+                } else if (ball.pos.x > wallX) {
+                    ball.pos.x = wallX;
+                    ball.vel.x = -Math.abs(ball.vel.x) * PHYSICS.BALL_RESTITUTION;
                 }
+
+                const wallZ = ARENA.LENGTH / 2 - r;
+                const insideGoalWidth = Math.abs(ball.pos.x) < ARENA.GOAL_WIDTH / 2 - r * 0.4;
+                const insideGoalHeight = ball.pos.y < ARENA.GOAL_HEIGHT - r * 0.35;
+
+                if (ball.pos.z < -wallZ) {
+                    if (!(insideGoalWidth && insideGoalHeight)) {
+                        ball.pos.z = -wallZ;
+                        ball.vel.z = Math.abs(ball.vel.z) * PHYSICS.BALL_RESTITUTION;
+                    }
+                } else if (ball.pos.z > wallZ) {
+                    if (!(insideGoalWidth && insideGoalHeight)) {
+                        ball.pos.z = wallZ;
+                        ball.vel.z = -Math.abs(ball.vel.z) * PHYSICS.BALL_RESTITUTION;
+                    }
+                }
+
+                if (ball.pos.z < -ARENA.LENGTH / 2 - r * 0.5) {
+                    handleGoalScored('orange');
+                    break;
+                } else if (ball.pos.z > ARENA.LENGTH / 2 + r * 0.5) {
+                    handleGoalScored('blue');
+                    break;
+                }
+
+                activeCars.forEach(car => {
+                    if (!car) return;
+                    const clampedY = THREE.MathUtils.clamp(ball.pos.y, car.pos.y + 0.5, car.pos.y + 2.8);
+                    const carCenter = new THREE.Vector3(car.pos.x, clampedY, car.pos.z);
+                    const diff = new THREE.Vector3().subVectors(ball.pos, carCenter);
+                    const dist = diff.length();
+                    const minDist = PHYSICS.BALL_RADIUS + 3.1;
+
+                    if (dist < minDist && dist > 0.0001) {
+                        const normal = diff.clone().normalize();
+                        const overlap = minDist - dist;
+                        ball.pos.addScaledVector(normal, overlap);
+
+                        const relVel = new THREE.Vector3().subVectors(ball.vel, car.vel);
+                        const sepVel = relVel.dot(normal);
+                        if (sepVel < 2.5) {
+                            const hitPower = car.flipTimer > 0 ? 1.55 : 1.28;
+                            const effectiveSep = Math.min(sepVel, -4);
+                            const impulse = -(1 + PHYSICS.BALL_RESTITUTION) * effectiveSep * hitPower;
+                            ball.vel.addScaledVector(normal, impulse);
+                            ball.vel.addScaledVector(car.vel, 0.38);
+                            ball.vel.y = Math.max(ball.vel.y, 7.5);
+                            sound.playBallHit(Math.min(1.5, Math.abs(effectiveSep) / 35));
+
+                            const now = performance.now();
+                            if (car.isPlayer && gameState === 'PLAYING' && Math.abs(effectiveSep) > 26 && now - lastBallTouchTime > 3200) {
+                                lastBallTouchTime = now;
+                                awardPoints(50, 'CHUTE FORTE');
+                            }
+                        }
+                    }
+                });
             }
 
             if (ballTargetRing) {
                 ballTargetRing.position.set(ball.pos.x, 0.08, ball.pos.z);
             }
-
-            if (ball.pos.z < -ARENA.LENGTH / 2 - r * 0.5) {
-                handleGoalScored('orange');
-            } else if (ball.pos.z > ARENA.LENGTH / 2 + r * 0.5) {
-                handleGoalScored('blue');
-            }
-
-            const activeCars = hasActiveBot() ? [playerCar, botCar] : [playerCar];
-            activeCars.forEach(car => {
-                if (!car) return;
-                const carCenter = new THREE.Vector3(car.pos.x, car.pos.y + 1.4, car.pos.z);
-                const diff = new THREE.Vector3().subVectors(ball.pos, carCenter);
-                const dist = diff.length();
-                const minDist = PHYSICS.BALL_RADIUS + 2.6;
-
-                if (dist < minDist && dist > 0.0001) {
-                    const normal = diff.clone().normalize();
-                    const overlap = minDist - dist;
-                    ball.pos.addScaledVector(normal, overlap);
-
-                    const relVel = new THREE.Vector3().subVectors(ball.vel, car.vel);
-                    const sepVel = relVel.dot(normal);
-                    if (sepVel < 0) {
-                        const hitPower = car.flipTimer > 0 ? 1.55 : 1.25;
-                        const impulse = -(1 + PHYSICS.BALL_RESTITUTION) * sepVel * hitPower;
-                        ball.vel.addScaledVector(normal, impulse);
-                        ball.vel.addScaledVector(car.vel, 0.35);
-                        ball.vel.y = Math.max(ball.vel.y, 7.5);
-                        sound.playBallHit(Math.min(1.5, Math.abs(sepVel) / 35));
-
-                        const now = performance.now();
-                        if (car.isPlayer && gameState === 'PLAYING' && Math.abs(sepVel) > 26 && now - lastBallTouchTime > 3200) {
-                            lastBallTouchTime = now;
-                            awardPoints(50, 'CHUTE FORTE');
-                        }
-                    }
-                }
-            });
 
             boostPads.forEach(pad => {
                 pad.orb.rotation.y += 2.2 * dt;
@@ -2833,6 +2851,30 @@
                         ball.mesh.position.copy(ball.pos);
                         if (ballTargetRing) {
                             ballTargetRing.position.set(ball.pos.x, 0.08, ball.pos.z);
+                        }
+                    }
+                    if (playerCar && ball) {
+                        const clampedY = THREE.MathUtils.clamp(ball.pos.y, playerCar.pos.y + 0.5, playerCar.pos.y + 2.8);
+                        const carCenter = new THREE.Vector3(playerCar.pos.x, clampedY, playerCar.pos.z);
+                        const diff = new THREE.Vector3().subVectors(ball.pos, carCenter);
+                        const dist = diff.length();
+                        const minDist = PHYSICS.BALL_RADIUS + 3.1;
+                        if (dist < minDist && dist > 0.0001) {
+                            const normal = diff.clone().normalize();
+                            ball.pos.addScaledVector(normal, minDist - dist);
+                            const pushSpeed = Math.max(18, Math.hypot(playerCar.vel.x, playerCar.vel.z) * 1.15);
+                            ball.vel.copy(normal).multiplyScalar(pushSpeed);
+                            ball.vel.y = Math.max(ball.vel.y, 8.5);
+                            ball.mesh.position.copy(ball.pos);
+                            netState.targetBallPos = ball.pos.clone();
+                            if (now - netState.lastGuestHitSent > 50) {
+                                netState.lastGuestHitSent = now;
+                                sendBrMessage({
+                                    type: 'GUEST_BALL_HIT',
+                                    ballPos: ball.pos.toArray(),
+                                    ballVel: ball.vel.toArray()
+                                });
+                            }
                         }
                     }
                 }
