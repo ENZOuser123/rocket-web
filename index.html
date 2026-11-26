@@ -1191,6 +1191,15 @@
                     if (isHost) {
                         sendBrMessage({ type: 'HELLO_BR', nick: playerNick, region: 'BR-SAO' });
                     }
+                } else if (msg.type === 'NAME_UPDATE') {
+                    netState.remoteNick = msg.nick || netState.remoteNick || (isHost ? 'Jogador BR' : 'Criador da Sala');
+                    refreshOpponentNickSprite();
+                    renderRoomPlayersList();
+                    if (fb && netState.remoteNick) {
+                        fb.textContent = isHost
+                            ? `Sala BR ${code}: ${netState.remoteNick} atualizou o nome.`
+                            : `Sala BR ${code}: Admin (${netState.remoteNick} 👑) atualizou o nome.`;
+                    }
                 } else if (msg.type === 'GUEST_CTRL' && isHost) {
                     netState.remoteCtrl = Object.assign({
                         throttle: 0,
@@ -3119,7 +3128,12 @@
                     playerNick = typedNick || 'Jogador';
                     document.getElementById('hud-player-nick').textContent = playerNick;
                     document.getElementById('input-nick').value = playerNick;
+                    saveProfileToStorage();
                     refreshPlayerNickSprite();
+                    renderRoomPlayersList();
+                    if (activeRoomCode) {
+                        sendBrMessage({ type: 'NAME_UPDATE', nick: playerNick, region: 'BR-SAO' });
+                    }
                 }
                 startMatch();
             });
@@ -3267,7 +3281,7 @@
                 refreshPlayerNickSprite();
                 renderRoomPlayersList();
                 if (activeRoomCode) {
-                    sendBrMessage({ type: 'HELLO_BR', nick: playerNick, region: 'BR-SAO' });
+                    sendBrMessage({ type: 'NAME_UPDATE', nick: playerNick, region: 'BR-SAO' });
                 }
                 applyPlatformUI();
                 document.getElementById('modal-profile').classList.add('hidden');
@@ -3280,93 +3294,8 @@
                 saveProfileToStorage();
                 refreshPlayerNickSprite();
                 renderRoomPlayersList();
-            });
-
-            document.querySelectorAll('.ball-style-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const style = btn.getAttribute('data-ball-style');
-                    if (!style) return;
-                    activeBallStyle = style;
-                    customBallTextureRef = null;
-                    ballTextureRef = createBallTexture(style);
-                    document.querySelectorAll('.ball-style-btn').forEach(b => {
-                        const active = b.getAttribute('data-ball-style') === style;
-                        b.className = active
-                            ? 'ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400'
-                            : 'ball-style-btn py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
-                    });
-                    const labels = { carbon: 'Carbono', plasma: 'Plasma', magma: 'Magma', enzo: '@enzoxd_244' };
-                    document.getElementById('menu-ball-label').textContent = labels[style] || 'Carbono';
-                    applyGraphicsSettings();
-                });
-            });
-
-            document.getElementById('input-ball-image').addEventListener('change', (e) => {
-                const file = e.target.files && e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const tex = new THREE.Texture(img);
-                        tex.needsUpdate = true;
-                        customBallTextureRef = tex;
-                        activeBallStyle = 'custom';
-                        ballTextureRef = tex;
-                        applyGraphicsSettings();
-                        document.getElementById('menu-ball-label').textContent = 'Personalizada';
-                    };
-                    img.src = ev.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-
-            const setPreset = (preset) => {
-                if (preset === 'low') {
-                    graphicsSettings.textures = false;
-                    graphicsSettings.shadows = false;
-                    graphicsSettings.domeAndSkyline = false;
-                    graphicsSettings.particles = false;
-                } else if (preset === 'medium') {
-                    graphicsSettings.textures = true;
-                    graphicsSettings.shadows = false;
-                    graphicsSettings.domeAndSkyline = true;
-                    graphicsSettings.particles = true;
-                } else {
-                    graphicsSettings.textures = true;
-                    graphicsSettings.shadows = true;
-                    graphicsSettings.domeAndSkyline = true;
-                    graphicsSettings.particles = true;
-                }
-                applyGraphicsSettings();
-            };
-
-            document.getElementById('preset-low').addEventListener('click', () => setPreset('low'));
-            document.getElementById('preset-medium').addEventListener('click', () => setPreset('medium'));
-            document.getElementById('preset-ultra').addEventListener('click', () => setPreset('ultra'));
-
-            document.getElementById('toggle-textures').addEventListener('click', () => {
-                graphicsSettings.textures = !graphicsSettings.textures;
-                applyGraphicsSettings();
-            });
-            document.getElementById('toggle-shadows').addEventListener('click', () => {
-                graphicsSettings.shadows = !graphicsSettings.shadows;
-                applyGraphicsSettings();
-            });
-            document.getElementById('toggle-dome').addEventListener('click', () => {
-                graphicsSettings.domeAndSkyline = !graphicsSettings.domeAndSkyline;
-                applyGraphicsSettings();
-            });
-            document.getElementById('toggle-particles').addEventListener('click', () => {
-                graphicsSettings.particles = !graphicsSettings.particles;
-                applyGraphicsSettings();
-            });
-
-            document.getElementById('btn-pause').addEventListener('click', () => {
-                if (gameState === 'PLAYING') {
-                    gameState = 'PAUSED';
-                    clearInputs();
-                    document.getElementById('modal-pause').classList.remove('hidden');
+                if (activeRoomCode) {
+                    sendBrMessage({ type: 'NAME_UPDATE', nick: playerNick, region: 'BR-SAO' });
                 }
             });
             document.getElementById('btn-resume').addEventListener('click', () => {
