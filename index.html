@@ -83,28 +83,36 @@
 
         .analog-pad {
             position: relative;
-            width: 112px;
-            height: 112px;
+            width: 118px;
+            height: 118px;
             border-radius: 9999px;
-            background: rgba(15, 23, 42, 0.72);
-            border: 1.5px solid rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(6px);
+            background: rgba(15, 23, 42, 0.78);
+            border: 2px solid rgba(56, 189, 248, 0.45);
+            backdrop-filter: blur(8px);
             touch-action: none;
+            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
         .analog-stick {
             position: absolute;
             left: 50%;
             top: 50%;
-            width: 44px;
-            height: 44px;
-            margin-left: -22px;
-            margin-top: -22px;
+            width: 48px;
+            height: 48px;
+            margin-left: -24px;
+            margin-top: -24px;
             border-radius: 9999px;
-            background: rgba(56, 189, 248, 0.85);
-            border: 2px solid rgba(255, 255, 255, 0.65);
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+            background: radial-gradient(circle at 30% 30%, #7dd3fc, #0284c7);
+            border: 2px solid rgba(255, 255, 255, 0.78);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
             pointer-events: none;
+            transition: transform 0.04s linear;
+        }
+
+        .game-pad-visible {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
     </style>
 </head>
@@ -122,7 +130,7 @@
                 <span id="hud-mode-label">1V1</span>
                 <span id="hud-room-badge" class="hidden ml-2 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30"></span>
             </div>
-            <button id="btn-pause" class="pointer-events-auto glass-panel hover:bg-slate-800 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-200">
+            <button type="button" id="btn-pause" class="pointer-events-auto relative z-50 touch-manipulation glass-panel hover:bg-slate-800 active:bg-slate-700 rounded-lg px-3.5 py-2 min-h-[40px] text-xs font-bold uppercase tracking-wider text-slate-200">
                 Pausa (ESC)
             </button>
         </div>
@@ -201,34 +209,59 @@
         <div><strong class="text-white">E / Ctrl:</strong> Drift | <strong class="text-white">F:</strong> Cam Bola</div>
     </div>
 
-    <div id="console-controls-hint" class="hidden fixed bottom-4 left-4 z-20 glass-panel rounded-xl px-3.5 py-2.5 text-[11px] text-slate-300 pointer-events-none leading-relaxed">
-        <div><strong class="text-emerald-300">Modo Console (PS4 / Xbox):</strong> Controle conectado</div>
+    <div id="console-controls-hint" class="hidden fixed bottom-4 left-4 z-50 glass-panel rounded-xl px-3.5 py-2.5 text-[11px] text-slate-300 pointer-events-none leading-relaxed">
+        <div><strong class="text-emerald-300">Modo Console (PS4 / Xbox):</strong> <span id="console-live-pad-badge">Aguardando controle...</span></div>
         <div><strong class="text-white">L.Esq / R2 / L2:</strong> Dirigir / Acelerar / Ré</div>
-        <div><strong class="text-white">X / A:</strong> Pular / Flip • <strong class="text-white">R1 / RB / B:</strong> Boost</div>
-        <div><strong class="text-white">L1 / LB / Quadrado:</strong> Drift • <strong class="text-white">Y / Triângulo:</strong> Cam Bola</div>
+        <div><strong class="text-amber-300">Y</strong> <strong class="text-white">(ou A / X): Pular / Flip</strong> • <strong class="text-white">R1 / RB / B:</strong> Boost</div>
+        <div><strong class="text-white">L1 / LB / Quadrado:</strong> Drift • <strong class="text-white">Triângulo / Select:</strong> Cam Bola</div>
     </div>
 
-    <div id="mobile-controls" class="hidden fixed inset-x-0 bottom-4 z-30 px-4 flex flex-wrap items-end justify-between gap-3 pointer-events-none">
+    <div id="mobile-controls" class="hidden fixed inset-x-0 bottom-3 z-50 px-3 flex flex-wrap items-end justify-between gap-2 pointer-events-none">
         <div class="flex items-end gap-2.5 pointer-events-auto">
-            <div id="analog-pad" class="analog-pad" aria-label="Analógico Virtual">
+            <div id="analog-pad" class="analog-pad" aria-label="Joystick Virtual">
+                <div class="pointer-events-none absolute inset-3 rounded-full border border-dashed border-sky-300/25"></div>
                 <div id="analog-stick" class="analog-stick"></div>
             </div>
 
             <div class="flex flex-col gap-1.5">
-                <button id="touch-up" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">W</button>
+                <button id="touch-up" class="touch-btn w-11 h-11 rounded-2xl font-rl text-base font-bold">W</button>
                 <div class="flex gap-1.5">
-                    <button id="touch-left" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">A</button>
-                    <button id="touch-down" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">S</button>
-                    <button id="touch-right" class="touch-btn w-12 h-12 rounded-2xl font-rl text-lg font-bold">D</button>
+                    <button id="touch-left" class="touch-btn w-11 h-11 rounded-2xl font-rl text-base font-bold">A</button>
+                    <button id="touch-down" class="touch-btn w-11 h-11 rounded-2xl font-rl text-base font-bold">S</button>
+                    <button id="touch-right" class="touch-btn w-11 h-11 rounded-2xl font-rl text-base font-bold">D</button>
                 </div>
             </div>
         </div>
 
-        <div class="flex gap-2.5 pointer-events-auto">
-            <button id="touch-drift" class="touch-btn px-3.5 h-14 rounded-2xl text-xs font-extrabold uppercase text-sky-300">Drift</button>
-            <button id="touch-boost" class="touch-btn px-4 h-14 rounded-2xl text-xs font-extrabold uppercase text-amber-300">Boost</button>
-            <button id="touch-jump" class="touch-btn px-4 h-14 rounded-2xl text-xs font-extrabold uppercase text-emerald-300">Pular</button>
+        <div class="flex gap-2 pointer-events-auto">
+            <button id="touch-drift" class="touch-btn px-3 h-12 rounded-2xl text-xs font-extrabold uppercase text-sky-300">Drift</button>
+            <button id="touch-boost" class="touch-btn px-3.5 h-12 rounded-2xl text-xs font-extrabold uppercase text-amber-300">Boost</button>
+            <button id="touch-jump" class="touch-btn px-3.5 h-12 rounded-2xl text-xs font-extrabold uppercase text-emerald-300">Pular</button>
         </div>
+    </div>
+
+    <div id="screen-action-buttons" class="hidden fixed bottom-20 left-3 z-50 flex flex-wrap items-center gap-1.5 max-w-[75vw] pointer-events-auto">
+        <button id="action-btn-throttle" class="touch-btn px-2.5 h-10 rounded-xl text-[11px] font-extrabold uppercase text-white">
+            W
+        </button>
+        <button id="action-btn-reverse" class="touch-btn px-2.5 h-10 rounded-xl text-[11px] font-extrabold uppercase text-slate-200">
+            S
+        </button>
+        <button id="action-btn-left" class="touch-btn px-2.5 h-10 rounded-xl text-[11px] font-extrabold uppercase text-sky-300">
+            ◀ A
+        </button>
+        <button id="action-btn-right" class="touch-btn px-2.5 h-10 rounded-xl text-[11px] font-extrabold uppercase text-sky-300">
+            ▶ D
+        </button>
+        <button id="action-btn-drift" class="touch-btn px-2.5 h-10 rounded-xl text-[11px] font-extrabold uppercase text-cyan-300">
+            Drift
+        </button>
+        <button id="action-btn-boost" class="touch-btn px-3 h-10 rounded-xl text-[11px] font-extrabold uppercase text-amber-300">
+            Boost
+        </button>
+        <button id="action-btn-jump" class="touch-btn px-3 h-10 rounded-xl text-[11px] font-extrabold uppercase text-emerald-300">
+            Pular
+        </button>
     </div>
 
     <div id="main-menu" class="fixed inset-0 z-30 flex flex-col justify-between p-4 sm:p-8 bg-gradient-to-r from-slate-950/90 via-slate-950/45 to-slate-950/75">
@@ -844,6 +877,7 @@
         let touchDriftPressed = false;
         let touchSteer = 0;
         let touchThrottle = 0;
+        let resetAnalogCallback = null;
 
         class SoundEngine {
             constructor() {
@@ -902,6 +936,9 @@
             touchDriftPressed = false;
             touchSteer = 0;
             touchThrottle = 0;
+            if (typeof resetAnalogCallback === 'function') {
+                resetAnalogCallback();
+            }
             trickSpinAccum = 0;
             consoleJumpWasPressed = false;
             consoleCamWasPressed = false;
@@ -942,17 +979,30 @@
 
         function pollConsoleGamepad() {
             const statusEl = document.getElementById('console-pad-status');
+            const liveBadgeEl = document.getElementById('console-live-pad-badge');
             const pad = getConnectedGamepad();
             if (statusEl) {
                 statusEl.textContent = pad
-                    ? `Controle conectado: ${pad.id || 'Gamepad'}`
-                    : 'Aguardando controle PS4 / Xbox / Genérico via USB ou Bluetooth...';
+                    ? `Controle identificado: ${pad.id || 'Gamepad'} (Y = Pular / Flip)`
+                    : 'Aguardando controle PS4 / Xbox / Genérico via USB ou Bluetooth... (Y = Pular)';
+            }
+            if (liveBadgeEl) {
+                if (!pad) {
+                    liveBadgeEl.textContent = 'Aguardando controle...';
+                } else {
+                    const pressedIdx = pad.buttons
+                        ? pad.buttons.findIndex(b => b && b.pressed)
+                        : -1;
+                    const btnNames = { 0: 'A/X', 1: 'B/O', 2: 'X/□', 3: 'Y/△', 4: 'LB/L1', 5: 'RB/R1', 6: 'LT/L2', 7: 'RT/R2' };
+                    const pressedLabel = pressedIdx >= 0 ? ` • Botão ${btnNames[pressedIdx] || pressedIdx}` : '';
+                    liveBadgeEl.textContent = `Identificado: ${pad.id || 'Gamepad'}${pressedLabel}`;
+                }
             }
             if (!pad || platform !== 'console') return;
 
             const jumpPressed = Boolean(
-                (pad.buttons[0] && pad.buttons[0].pressed) ||
-                (pad.buttons[3] && pad.buttons[3].pressed)
+                (pad.buttons[3] && pad.buttons[3].pressed) ||
+                (pad.buttons[0] && pad.buttons[0].pressed)
             );
             if (jumpPressed && !consoleJumpWasPressed && gameState === 'PLAYING' && playerCar) {
                 const ctrl = getPlayerControl();
@@ -964,8 +1014,6 @@
             consoleJumpWasPressed = jumpPressed;
 
             const camPressed = Boolean(
-                (pad.buttons[3] && pad.buttons[3].pressed && false) ||
-                (pad.buttons[2] && pad.buttons[2].pressed && false) ||
                 (pad.buttons[8] && pad.buttons[8].pressed) ||
                 (pad.buttons[9] && pad.buttons[9].pressed)
             );
@@ -1008,29 +1056,40 @@
             botCar.mesh.add(oppNickSprite);
         }
 
+        function isTouchMobileDevice() {
+            const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+            const mobileViewportOrUa = window.innerWidth <= 1024 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+            return Boolean(hasTouch || mobileViewportOrUa);
+        }
+
         function loadSavedProfile() {
             try {
                 const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
-                if (!raw) return;
-                const saved = JSON.parse(raw);
-                if (saved && typeof saved === 'object') {
-                    if (typeof saved.nick === 'string' && saved.nick.trim()) {
-                        playerNick = saved.nick.trim().slice(0, 16);
-                    }
-                    if (typeof saved.rainbowNick === 'boolean') {
-                        rainbowNick = saved.rainbowNick;
-                    }
-                    if (['pc', 'mobile', 'console'].includes(saved.platform)) {
-                        platform = saved.platform;
-                    }
-                    if (typeof saved.level === 'number' && saved.level >= 1) {
-                        playerLevel = Math.floor(saved.level);
-                    }
-                    if (typeof saved.points === 'number' && saved.points >= 0) {
-                        playerPoints = Math.floor(saved.points);
+                if (raw) {
+                    const saved = JSON.parse(raw);
+                    if (saved && typeof saved === 'object') {
+                        if (typeof saved.nick === 'string' && saved.nick.trim()) {
+                            playerNick = saved.nick.trim().slice(0, 16);
+                        }
+                        if (typeof saved.rainbowNick === 'boolean') {
+                            rainbowNick = saved.rainbowNick;
+                        }
+                        if (['pc', 'mobile', 'console'].includes(saved.platform)) {
+                            platform = saved.platform;
+                        }
+                        if (typeof saved.level === 'number' && saved.level >= 1) {
+                            playerLevel = Math.floor(saved.level);
+                        }
+                        if (typeof saved.points === 'number' && saved.points >= 0) {
+                            playerPoints = Math.floor(saved.points);
+                        }
                     }
                 }
             } catch (_) {}
+
+            if (isTouchMobileDevice() && platform === 'pc') {
+                platform = 'mobile';
+            }
         }
 
         function saveProfileToStorage() {
@@ -1236,6 +1295,11 @@
                     startMatch();
                     const teamName = myAssignedTeam === 'orange' ? 'TIME LARANJA' : 'TIME AZUL';
                     showAnnouncer('TIMES SORTEADOS!', `Voce foi para o ${teamName}`, 1800);
+                } else if (msg.type === 'KICKOFF_BR' && !isHost) {
+                    if (msg.scoreBlue !== undefined) scoreBlue = msg.scoreBlue;
+                    if (msg.scoreOrange !== undefined) scoreOrange = msg.scoreOrange;
+                    updateScoreHUD();
+                    startCountdown();
                 } else if (msg.type === 'SYNC_BR' && !isHost) {
                     if (msg.pPos && botCar) {
                         const nextOppPos = new THREE.Vector3().fromArray(msg.pPos);
@@ -1446,16 +1510,18 @@
                 }
             }
 
-            let throttle = 0;
+            let throttle = touchThrottle;
             if (keys['KeyW'] || keys['ArrowUp']) throttle += 1;
             if (keys['KeyS'] || keys['ArrowDown']) throttle -= 1;
+            throttle = THREE.MathUtils.clamp(throttle, -1, 1);
 
-            let steer = 0;
+            let steer = touchSteer;
             if (keys['KeyA'] || keys['ArrowLeft']) steer += 1;
             if (keys['KeyD'] || keys['ArrowRight']) steer -= 1;
+            steer = THREE.MathUtils.clamp(steer, -1, 1);
 
-            const boosting = Boolean(keys['ShiftLeft'] || keys['ShiftRight'] || mouseBoostHeld);
-            const drifting = Boolean(keys['KeyE'] || keys['ControlLeft'] || keys['ControlRight']);
+            const boosting = Boolean(keys['ShiftLeft'] || keys['ShiftRight'] || mouseBoostHeld || touchBoostPressed);
+            const drifting = Boolean(keys['KeyE'] || keys['ControlLeft'] || keys['ControlRight'] || touchDriftPressed);
             return { throttle, steer, boosting, drifting };
         }
 
@@ -1647,7 +1713,6 @@
         }
 
         function updatePointsHUD() {
-            // Calcula o nível com base nos pontos acumulados (cada 250 PTS sobe 1 nível)
             const calculatedLevel = 1 + Math.floor(Math.max(0, playerPoints) / 250);
             if (calculatedLevel > playerLevel) {
                 playerLevel = calculatedLevel;
@@ -2627,6 +2692,14 @@
             gameState = 'COUNTDOWN';
             clearInputs();
 
+            if (netState.role === 'host') {
+                sendBrMessage({
+                    type: 'KICKOFF_BR',
+                    scoreBlue,
+                    scoreOrange
+                });
+            }
+
             const steps = ['3', '2', '1'];
             let idx = 0;
 
@@ -2758,7 +2831,16 @@
             document.getElementById('hud-bottom').classList.add('hidden');
             document.getElementById('pc-controls-hint').classList.add('hidden');
             document.getElementById('console-controls-hint').classList.add('hidden');
-            document.getElementById('mobile-controls').classList.add('hidden');
+            const mobileControlsEl = document.getElementById('mobile-controls');
+            if (mobileControlsEl) {
+                mobileControlsEl.classList.remove('game-pad-visible');
+                mobileControlsEl.classList.add('hidden');
+            }
+            const actionButtonsEl = document.getElementById('screen-action-buttons');
+            if (actionButtonsEl) {
+                actionButtonsEl.classList.remove('game-pad-visible');
+                actionButtonsEl.classList.add('hidden');
+            }
             document.getElementById('modal-pause').classList.add('hidden');
             document.getElementById('modal-gameover').classList.add('hidden');
             document.getElementById('main-menu').classList.remove('hidden');
@@ -2766,11 +2848,43 @@
 
         function applyPlatformUI() {
             const isActiveMatch = gameState !== 'PAUSED' && gameState !== 'GAMEOVER' && gameState !== 'MENU';
-            const showMobileControls = platform === 'mobile' && isActiveMatch;
-            const showConsoleHint = platform === 'console' && isActiveMatch;
+            const isMobileMode = platform === 'mobile' || (platform !== 'console' && isTouchMobileDevice());
+            const showMobileControls = isActiveMatch && isMobileMode;
+            const showActionButtons = isActiveMatch && isMobileMode;
+            const showConsoleHint = isActiveMatch && platform === 'console';
+
+            const mobileControlsEl = document.getElementById('mobile-controls');
+            const actionButtonsEl = document.getElementById('screen-action-buttons');
+            const consoleHintEl = document.getElementById('console-controls-hint');
+            const hudTopEl = document.getElementById('hud-top');
+            if (hudTopEl) {
+                hudTopEl.style.zIndex = isActiveMatch ? '60' : '20';
+            }
+
+            if (mobileControlsEl) {
+                mobileControlsEl.classList.toggle('hidden', !showMobileControls);
+                mobileControlsEl.classList.toggle('game-pad-visible', showMobileControls);
+                mobileControlsEl.style.display = showMobileControls ? 'flex' : 'none';
+                mobileControlsEl.style.visibility = showMobileControls ? 'visible' : 'hidden';
+                mobileControlsEl.style.opacity = showMobileControls ? '1' : '0';
+                mobileControlsEl.style.zIndex = '50';
+            }
+            if (actionButtonsEl) {
+                actionButtonsEl.classList.toggle('hidden', !showActionButtons);
+                actionButtonsEl.classList.toggle('game-pad-visible', showActionButtons);
+                actionButtonsEl.style.display = showActionButtons ? 'flex' : 'none';
+                actionButtonsEl.style.visibility = showActionButtons ? 'visible' : 'hidden';
+                actionButtonsEl.style.opacity = showActionButtons ? '1' : '0';
+                actionButtonsEl.style.zIndex = '50';
+            }
+            if (consoleHintEl) {
+                consoleHintEl.classList.toggle('hidden', !showConsoleHint);
+                consoleHintEl.style.display = showConsoleHint ? 'block' : 'none';
+                consoleHintEl.style.visibility = showConsoleHint ? 'visible' : 'hidden';
+                consoleHintEl.style.opacity = showConsoleHint ? '1' : '0';
+                consoleHintEl.style.zIndex = '50';
+            }
             document.getElementById('pc-controls-hint').classList.add('hidden');
-            document.getElementById('console-controls-hint').classList.toggle('hidden', !showConsoleHint);
-            document.getElementById('mobile-controls').classList.toggle('hidden', !showMobileControls);
             document.getElementById('menu-platform-label').textContent = platform.toUpperCase();
         }
 
@@ -2823,7 +2937,10 @@
             buildStadium();
             createBoostPads();
             applyGraphicsSettings();
-            document.getElementById('menu-map-name').textContent = (MAP_THEMES[selectedMap] || MAP_THEMES.cyber).label;
+            const mapNameEl = document.getElementById('menu-map-name');
+            if (mapNameEl) {
+                mapNameEl.textContent = (MAP_THEMES[selectedMap] || MAP_THEMES.cyber).label;
+            }
         }
 
         function updateCamera(dt) {
@@ -2997,7 +3114,7 @@
 
         function bindEvents() {
             window.addEventListener('resize', onWindowResize);
-
+            window.addEventListener('resize', applyPlatformUI);
             window.addEventListener('keydown', (e) => {
                 const tag = e.target && e.target.tagName ? e.target.tagName.toUpperCase() : '';
                 if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
@@ -3280,11 +3397,23 @@
             };
 
             document.getElementById('platform-pc').addEventListener('click', () => setPlatformMode('pc'));
-            document.getElementById('platform-mobile').addEventListener('click', () => setPlatformMode('mobile'));
-            document.getElementById('platform-console').addEventListener('click', () => setPlatformMode('console'));
+            document.getElementById('platform-mobile').addEventListener('click', () => {
+                setPlatformMode('mobile');
+                if (gameState === 'MENU') {
+                    const feedbackEl = document.getElementById('console-pad-status');
+                    if (feedbackEl) {
+                        feedbackEl.textContent = 'Modo Mobile ativado! O joystick e os botões aparecerão assim que você entrar na partida.';
+                    }
+                }
+            });
+            document.getElementById('platform-console').addEventListener('click', () => {
+                setPlatformMode('console');
+                pollConsoleGamepad();
+            });
 
             document.getElementById('btn-save-profile').addEventListener('click', () => {
-                const val = (document.getElementById('input-nick').value || '').trim();
+                const nickInput = document.getElementById('input-nick');
+                const val = nickInput ? (nickInput.value || '').trim().slice(0, 16) : '';
                 playerNick = val || 'Jogador';
                 syncProfileUI();
                 saveProfileToStorage();
@@ -3294,7 +3423,8 @@
                     sendBrMessage({ type: 'NAME_UPDATE', nick: playerNick, region: 'BR-SAO' });
                 }
                 applyPlatformUI();
-                document.getElementById('modal-profile').classList.add('hidden');
+                const profileModal = document.getElementById('modal-profile');
+                if (profileModal) profileModal.classList.add('hidden');
             });
 
             document.getElementById('input-nick').addEventListener('input', (e) => {
@@ -3308,10 +3438,31 @@
                     sendBrMessage({ type: 'NAME_UPDATE', nick: playerNick, region: 'BR-SAO' });
                 }
             });
+
+            const pauseBtn = document.getElementById('btn-pause');
+            const togglePauseFromScreen = (e) => {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (gameState === 'PLAYING' || gameState === 'COUNTDOWN' || gameState === 'GOAL_CELEBRATION') {
+                    gameState = 'PAUSED';
+                    clearInputs();
+                    hideAnnouncer();
+                    applyPlatformUI();
+                    document.getElementById('modal-pause').classList.remove('hidden');
+                }
+            };
+            if (pauseBtn) {
+                pauseBtn.addEventListener('click', togglePauseFromScreen);
+                pauseBtn.addEventListener('touchend', togglePauseFromScreen, { passive: false });
+            }
+
             document.getElementById('btn-resume').addEventListener('click', () => {
                 if (gameState === 'PAUSED') {
                     gameState = 'PLAYING';
                     document.getElementById('modal-pause').classList.add('hidden');
+                    applyPlatformUI();
                 }
             });
             document.getElementById('btn-restart-match').addEventListener('click', () => {
@@ -3434,6 +3585,23 @@
                 graphicsSettings.particles = !graphicsSettings.particles;
                 applyGraphicsSettings();
             });
+            const demoModeToggle = document.getElementById('toggle-demo-mode');
+            if (demoModeToggle) {
+                demoModeToggle.addEventListener('click', () => {
+                    if (typeof demoMode !== 'undefined') {
+                        demoMode = !demoMode;
+                    }
+                    applyGraphicsSettings();
+                    if (gameState === 'PLAYING') {
+                        const isDemo = typeof demoMode !== 'undefined' && demoMode;
+                        showAnnouncer(
+                            isDemo ? 'MODO DEMONSTRACAO' : 'CONTROLE MANUAL',
+                            isDemo ? 'A IA esta jogando no seu carro' : 'Voce reassumiu o controle',
+                            1400
+                        );
+                    }
+                });
+            }
 
             const bindHoldButton = (id, onDown, onUp) => {
                 const el = document.getElementById(id);
@@ -3457,28 +3625,45 @@
             bindHoldButton('touch-boost', () => { touchBoostPressed = true; }, () => { touchBoostPressed = false; });
             bindHoldButton('touch-drift', () => { touchDriftPressed = true; }, () => { touchDriftPressed = false; });
 
+            bindHoldButton('action-btn-throttle', () => { touchThrottle = 1; }, () => { if (touchThrottle > 0) touchThrottle = 0; });
+            bindHoldButton('action-btn-reverse', () => { touchThrottle = -1; }, () => { if (touchThrottle < 0) touchThrottle = 0; });
+            bindHoldButton('action-btn-left', () => { touchSteer = 1; }, () => { if (touchSteer > 0) touchSteer = 0; });
+            bindHoldButton('action-btn-right', () => { touchSteer = -1; }, () => { if (touchSteer < 0) touchSteer = 0; });
+            bindHoldButton('action-btn-boost', () => { touchBoostPressed = true; }, () => { touchBoostPressed = false; });
+            bindHoldButton('action-btn-drift', () => { touchDriftPressed = true; }, () => { touchDriftPressed = false; });
+
+            const triggerScreenJump = (e) => {
+                e.preventDefault();
+                touchJumpPressed = true;
+                if (gameState === 'PLAYING' && playerCar) {
+                    const ctrl = getPlayerControl();
+                    if (netState.role === 'guest') {
+                        sendBrMessage({ type: 'GUEST_JUMP' });
+                    }
+                    triggerJumpOrFlip(playerCar, ctrl.steer, ctrl.throttle);
+                }
+            };
+
             const touchJumpBtn = document.getElementById('touch-jump');
             if (touchJumpBtn) {
-                touchJumpBtn.addEventListener('pointerdown', (e) => {
-                    e.preventDefault();
-                    touchJumpPressed = true;
-                    if (gameState === 'PLAYING' && playerCar) {
-                        const ctrl = getPlayerControl();
-                        if (netState.role === 'guest') {
-                            sendBrMessage({ type: 'GUEST_JUMP' });
-                        }
-                        triggerJumpOrFlip(playerCar, ctrl.steer, ctrl.throttle);
-                    }
-                });
+                touchJumpBtn.addEventListener('pointerdown', triggerScreenJump);
                 touchJumpBtn.addEventListener('pointerup', () => { touchJumpPressed = false; });
                 touchJumpBtn.addEventListener('pointercancel', () => { touchJumpPressed = false; });
+            }
+
+            const actionJumpBtn = document.getElementById('action-btn-jump');
+            if (actionJumpBtn) {
+                actionJumpBtn.addEventListener('pointerdown', triggerScreenJump);
+                actionJumpBtn.addEventListener('pointerup', () => { touchJumpPressed = false; });
+                actionJumpBtn.addEventListener('pointercancel', () => { touchJumpPressed = false; });
             }
 
             const analogPad = document.getElementById('analog-pad');
             const analogStick = document.getElementById('analog-stick');
             if (analogPad && analogStick) {
                 let activeAnalogPointerId = null;
-                const maxRadius = 34;
+                let trackingTouchJoystick = false;
+                const maxRadius = 38;
 
                 const updateAnalogFromPoint = (clientX, clientY) => {
                     const rect = analogPad.getBoundingClientRect();
@@ -3498,15 +3683,17 @@
 
                 const resetAnalog = () => {
                     activeAnalogPointerId = null;
+                    trackingTouchJoystick = false;
                     analogStick.style.transform = 'translate(0px, 0px)';
                     touchSteer = 0;
                     touchThrottle = 0;
                 };
+                resetAnalogCallback = resetAnalog;
 
                 analogPad.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
                     activeAnalogPointerId = e.pointerId;
-                    analogPad.setPointerCapture(e.pointerId);
+                    try { analogPad.setPointerCapture(e.pointerId); } catch (_) {}
                     updateAnalogFromPoint(e.clientX, e.clientY);
                 });
 
@@ -3528,6 +3715,33 @@
                         resetAnalog();
                     }
                 });
+
+                analogPad.addEventListener('touchstart', (e) => {
+                    if (!e.touches || e.touches.length === 0) return;
+                    e.preventDefault();
+                    trackingTouchJoystick = true;
+                    const t = e.touches[0];
+                    updateAnalogFromPoint(t.clientX, t.clientY);
+                }, { passive: false });
+
+                analogPad.addEventListener('touchmove', (e) => {
+                    if (!trackingTouchJoystick || !e.touches || e.touches.length === 0) return;
+                    e.preventDefault();
+                    const t = e.touches[0];
+                    updateAnalogFromPoint(t.clientX, t.clientY);
+                }, { passive: false });
+
+                analogPad.addEventListener('touchend', (e) => {
+                    if (!e.touches || e.touches.length === 0) {
+                        e.preventDefault();
+                        resetAnalog();
+                    }
+                }, { passive: false });
+
+                analogPad.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    resetAnalog();
+                }, { passive: false });
             }
         }
 
@@ -3578,6 +3792,7 @@
             updatePointsHUD();
             resetPositionsForKickoff();
             applyGraphicsSettings();
+            applyPlatformUI();
             renderRoomPlayersList();
             bindEvents();
             animate();
