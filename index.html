@@ -760,6 +760,7 @@
         let isMuted = false;
         let activeBallStyle = 'carbon';
         let customBallTextureRef = null;
+        const PROFILE_STORAGE_KEY = 'rw_profile_v1';
 
         const BR_SERVER_PREFIX = 'RW-BR-SAO-';
         const netState = {
@@ -770,6 +771,7 @@
             role: 'offline',
             remoteNick: '',
             remoteCtrl: { throttle: 0, steer: 0, boosting: false, drifting: false },
+            pendingGuestJump: false,
             lastSyncSent: 0,
             lastGuestHitSent: 0,
             pendingGoalEvent: null,
@@ -929,52 +931,59 @@
             try {
                 const pads = navigator.getGamepads();
                 for (let i = 0; i < pads.length; i++) {
-                    if (pads[i] && pads[i].connected) return pads[i];
+                    if (pads[i] && pads[i].connected) {
+                        return pads[i];
+                    }
                 }
             } catch (_) {}
             return null;
         }
 
         function pollConsoleGamepad() {
-            const pad = getConnectedGamepad();
             const statusEl = document.getElementById('console-pad-status');
-            if (!pad) {
-                if (statusEl && platform === 'console') {
-                    statusEl.textContent = 'Nenhum controle detectado. Conecte seu controle PS4/Xbox ou aperte um botão.';
-                }
-                return;
-            }
+            const pad = getConnectedGamepad();
             if (statusEl) {
-                const shortId = (pad.id || 'Controle Console').slice(0, 34);
-                statusEl.textContent = `Controle conectado: ${shortId}`;
+                statusEl.textContent = pad
+                    ? `Controle conectado: ${pad.id || 'Gamepad'}`
+                    : 'Aguardando controle PS4 / Xbox / Genérico via USB ou Bluetooth...';
             }
+            if (!pad || platform !== 'console') return;
 
-            const jumpBtn = Boolean(pad.buttons[0] && pad.buttons[0].pressed);
-            const camBtn = Boolean(pad.buttons[3] && pad.buttons[3].pressed);
-
-            if (jumpBtn && !consoleJumpWasPressed && gameState === 'PLAYING' && playerCar) {
+            const jumpPressed = Boolean(
+                (pad.buttons[0] && pad.buttons[0].pressed) ||
+                (pad.buttons[3] && pad.buttons[3].pressed)
+            );
+            if (jumpPressed && !consoleJumpWasPressed && gameState === 'PLAYING' && playerCar) {
                 const ctrl = getPlayerControl();
+                if (netState.role === 'guest') {
+                    sendBrMessage({ type: 'GUEST_JUMP' });
+                }
                 triggerJumpOrFlip(playerCar, ctrl.steer, ctrl.throttle);
             }
-            consoleJumpWasPressed = jumpBtn;
+            consoleJumpWasPressed = jumpPressed;
 
-            if (camBtn && !consoleCamWasPressed) {
+            const camPressed = Boolean(
+                (pad.buttons[3] && pad.buttons[3].pressed && false) ||
+                (pad.buttons[2] && pad.buttons[2].pressed && false) ||
+                (pad.buttons[8] && pad.buttons[8].pressed) ||
+                (pad.buttons[9] && pad.buttons[9].pressed)
+            );
+            if (camPressed && !consoleCamWasPressed) {
                 isBallCam = !isBallCam;
-                const camBtnEl = document.getElementById('btn-toggle-cam');
-                if (camBtnEl) {
-                    camBtnEl.textContent = isBallCam ? 'Cam Bola [F]' : 'Cam Livre [F]';
-                }
+                const camBtn = document.getElementById('btn-toggle-cam');
+                if (camBtn) camBtn.textContent = isBallCam ? 'Cam Bola [F]' : 'Cam Livre [F]';
             }
-            consoleCamWasPressed = camBtn;
+            consoleCamWasPressed = camPressed;
         }
 
         function hasRemotePeerConnected() {
-            return Boolean(activeRoomCode && netState.conn && netState.conn.open);
+            return Boolean((netState.conn && netState.conn.open) || netState.remoteNick);
         }
 
         function hasActiveBot() {
-            if (hasRemotePeerConnected()) return true;
-            return Boolean(hasBot && botCar && gameMode !== 'training');
+            if (!botCar || gameMode === 'training') return false;
+            if (activeRoomCode && hasRemotePeerConnected()) return true;
+            return Boolean(hasBot);
         }
 
         function refreshOpponentNickSprite() {
@@ -989,15 +998,78 @@
                 }
                 oppNickSprite = null;
             }
-            const hasFriendConnected = hasRemotePeerConnected();
             const oppTeam = localTeam === 'orange' ? 'blue' : 'orange';
-            if (hasFriendConnected) {
-                const friendName = netState.remoteNick || (netState.role === 'host' ? 'Amigo BR' : `${playerNick || 'Jogador'} 👑`);
-                oppNickSprite = createNickSprite(friendName, false, oppTeam);
-            } else {
-                oppNickSprite = createNickSprite('BOT LARANJA', false, oppTeam);
-            }
+            const hasFriend = Boolean(activeRoomCode && hasRemotePeerConnected());
+            const oppLabel = hasFriend
+                ? (netState.remoteNick || (netState.role === 'host' ? 'Amigo BR' : `${playerNick || 'Jogador'} 👑`))
+                : 'BOT LARANJA';
+            oppNickSprite = createNickSprite(oppLabel, false, oppTeam);
             botCar.mesh.add(oppNickSprite);
+        }
+
+        function loadSavedProfile() {
+            try {
+                const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+                if (!raw) return;
+                const saved = JSON.parse(raw);
+                if (saved && typeof saved === 'object') {
+                    if (typeof saved.nick === 'string' && saved.nick.trim()) {
+                        playerNick = saved.nick.trim().slice(0, 16);
+                    }
+                    if (typeof saved.rainbowNick === 'boolean') {
+                        rainbowNick = saved.rainbowNick;
+                    }
+                    if (['pc', 'mobile', 'console'].includes(saved.platform)) {
+                        platform = saved.platform;
+                    }
+                }
+            } catch (_) {}
+        }
+
+        function saveProfileToStorage() {
+            try {
+                localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify({
+                    nick: playerNick,
+                    rainbowNick,
+                    platform
+                }));
+            } catch (_) {}
+        }
+
+        function syncProfileUI() {
+            const hudNick = document.getElementById('hud-player-nick');
+            const inputNick = document.getElementById('input-nick');
+            const quickNick = document.getElementById('input-quick-nick');
+            const rainbowBtn = document.getElementById('btn-toggle-rainbow');
+
+            if (hudNick) hudNick.textContent = playerNick;
+            if (inputNick) inputNick.value = playerNick;
+            if (quickNick) quickNick.value = playerNick;
+
+            if (rainbowBtn) {
+                rainbowBtn.textContent = rainbowNick ? 'ATIVADO' : 'DESATIVADO';
+                rainbowBtn.className = rainbowNick
+                    ? 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950'
+                    : 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase bg-slate-800 text-slate-400';
+            }
+
+            const pcBtn = document.getElementById('platform-pc');
+            const mobBtn = document.getElementById('platform-mobile');
+            const conBtn = document.getElementById('platform-console');
+            if (pcBtn && mobBtn && conBtn) {
+                pcBtn.className = platform === 'pc'
+                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400'
+                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                mobBtn.className = platform === 'mobile'
+                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-emerald-600 text-white border border-emerald-400'
+                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                conBtn.className = platform === 'console'
+                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-amber-600 text-white border border-amber-400'
+                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+            }
+
+            const platBadge = document.getElementById('menu-platform-label');
+            if (platBadge) platBadge.textContent = platform.toUpperCase();
         }
 
         function closeBrConnection() {
@@ -1133,6 +1205,8 @@
                         boosting: false,
                         drifting: false
                     }, msg.ctrl || {});
+                } else if (msg.type === 'GUEST_JUMP' && isHost) {
+                    netState.pendingGuestJump = true;
                 } else if (msg.type === 'GUEST_BALL_HIT' && isHost && ball) {
                     if (msg.ballPos) {
                         ball.pos.fromArray(msg.ballPos);
@@ -1376,6 +1450,10 @@
         function updateBotAI(dt) {
             if (!hasActiveBot() || !botCar || !ball) return;
             if (netState.role === 'host' && hasRemotePeerConnected()) {
+                if (netState.pendingGuestJump) {
+                    netState.pendingGuestJump = false;
+                    triggerJumpOrFlip(botCar, netState.remoteCtrl.steer, netState.remoteCtrl.throttle);
+                }
                 updateCarPhysics(botCar, netState.remoteCtrl, dt);
                 return;
             }
@@ -2933,6 +3011,9 @@
 
                 if (e.code === 'Space' && !wasPressed && gameState === 'PLAYING' && playerCar) {
                     const ctrl = getPlayerControl();
+                    if (netState.role === 'guest') {
+                        sendBrMessage({ type: 'GUEST_JUMP' });
+                    }
                     triggerJumpOrFlip(playerCar, ctrl.steer, ctrl.throttle);
                 }
             });
@@ -2967,7 +3048,7 @@
                 document.getElementById('modal-rooms').classList.remove('hidden');
             });
             document.getElementById('btn-menu-profile').addEventListener('click', () => {
-                document.getElementById('input-nick').value = playerNick;
+                syncProfileUI();
                 document.getElementById('modal-profile').classList.remove('hidden');
             });
             document.getElementById('btn-menu-options').addEventListener('click', () => {
@@ -3158,25 +3239,15 @@
 
             document.getElementById('btn-toggle-rainbow').addEventListener('click', () => {
                 rainbowNick = !rainbowNick;
-                const btn = document.getElementById('btn-toggle-rainbow');
-                btn.textContent = rainbowNick ? 'ATIVADO' : 'DESATIVADO';
-                btn.className = rainbowNick
-                    ? 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950'
-                    : 'px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase bg-slate-800 text-slate-400';
+                syncProfileUI();
+                saveProfileToStorage();
                 refreshPlayerNickSprite();
             });
 
             const setPlatformMode = (nextPlatform) => {
                 platform = nextPlatform;
-                document.getElementById('platform-pc').className = nextPlatform === 'pc'
-                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-sky-600 text-white border border-sky-400'
-                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
-                document.getElementById('platform-mobile').className = nextPlatform === 'mobile'
-                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-emerald-600 text-white border border-emerald-400'
-                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
-                document.getElementById('platform-console').className = nextPlatform === 'console'
-                    ? 'py-3 rounded-xl text-xs font-extrabold uppercase bg-amber-600 text-white border border-amber-400'
-                    : 'py-3 rounded-xl text-xs font-extrabold uppercase bg-slate-800 text-slate-300 border border-white/10';
+                syncProfileUI();
+                saveProfileToStorage();
                 pollConsoleGamepad();
                 applyPlatformUI();
             };
@@ -3188,16 +3259,22 @@
             document.getElementById('btn-save-profile').addEventListener('click', () => {
                 const val = (document.getElementById('input-nick').value || '').trim();
                 playerNick = val || 'Jogador';
-                document.getElementById('hud-player-nick').textContent = playerNick;
+                syncProfileUI();
+                saveProfileToStorage();
                 refreshPlayerNickSprite();
                 renderRoomPlayersList();
+                if (activeRoomCode) {
+                    sendBrMessage({ type: 'HELLO_BR', nick: playerNick, region: 'BR-SAO' });
+                }
                 applyPlatformUI();
                 document.getElementById('modal-profile').classList.add('hidden');
             });
 
             document.getElementById('input-nick').addEventListener('input', (e) => {
-                playerNick = e.target.value || 'Jogador';
-                document.getElementById('hud-player-nick').textContent = playerNick;
+                playerNick = (e.target.value || '').trim().slice(0, 16) || 'Jogador';
+                const hudNick = document.getElementById('hud-player-nick');
+                if (hudNick) hudNick.textContent = playerNick;
+                saveProfileToStorage();
                 refreshPlayerNickSprite();
                 renderRoomPlayersList();
             });
@@ -3336,6 +3413,9 @@
             bindHold('touch-drift', () => { touchDriftPressed = true; }, () => { touchDriftPressed = false; });
             bindHold('touch-jump', () => {
                 if (!touchJumpPressed && gameState === 'PLAYING' && playerCar) {
+                    if (netState.role === 'guest') {
+                        sendBrMessage({ type: 'GUEST_JUMP' });
+                    }
                     triggerJumpOrFlip(playerCar, touchSteer, touchThrottle);
                 }
                 touchJumpPressed = true;
@@ -3445,6 +3525,8 @@
 
             playerCar = createCar(0x0284c7, 0xfacc15, true);
             botCar = createCar(0xea580c, 0x38bdf8, false);
+            loadSavedProfile();
+            syncProfileUI();
             applyEquippedVisuals();
             updatePointsHUD();
             resetPositionsForKickoff();
