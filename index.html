@@ -1505,7 +1505,7 @@
                 if (nearCeiling && ballHorizSpeed > 14 && ball.vel.y > -1.5) {
                     ball.vel.y = Math.max(ball.vel.y, 0);
                 } else {
-                    ball.vel.y += PHYSICS.GRAVITY * 1.15 * subDt;
+                    ball.vel.y += PHYSICS.GRAVITY * 1.48 * subDt;
                 }
 
                 ball.pos.addScaledVector(ball.vel, subDt);
@@ -1579,7 +1579,7 @@
                             const impulse = -(1 + PHYSICS.BALL_RESTITUTION) * effectiveSep * hitPower;
                             ball.vel.addScaledVector(normal, impulse);
                             ball.vel.addScaledVector(car.vel, 0.38);
-                            ball.vel.y = Math.max(ball.vel.y, 7.5);
+                            ball.vel.y = Math.max(ball.vel.y, 5.5);
                             sound.playBallHit(Math.min(1.5, Math.abs(effectiveSep) / 35));
 
                             const now = performance.now();
