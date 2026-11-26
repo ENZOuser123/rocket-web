@@ -770,7 +770,11 @@
             role: 'offline',
             remoteNick: '',
             remoteCtrl: { throttle: 0, steer: 0, boosting: false, drifting: false },
-            lastSyncSent: 0
+            lastSyncSent: 0,
+            pendingGoalEvent: null,
+            targetOppPos: null,
+            targetOppYaw: null,
+            targetBallPos: null
         };
         let consoleJumpWasPressed = false;
         let consoleCamWasPressed = false;
@@ -1010,6 +1014,9 @@
             }
             netState.role = 'offline';
             netState.remoteNick = '';
+            netState.targetOppPos = null;
+            netState.targetOppYaw = null;
+            netState.targetBallPos = null;
             renderRoomPlayersList();
             refreshPlayerNickSprite();
             refreshOpponentNickSprite();
@@ -1136,26 +1143,30 @@
                     showAnnouncer('TIMES SORTEADOS!', `Voce foi para o ${teamName}`, 1800);
                 } else if (msg.type === 'SYNC_BR' && !isHost) {
                     if (msg.pPos && botCar) {
-                        botCar.pos.fromArray(msg.pPos);
-                        botCar.mesh.position.copy(botCar.pos);
+                        const nextOppPos = new THREE.Vector3().fromArray(msg.pPos);
+                        if (!netState.targetOppPos || botCar.pos.distanceTo(nextOppPos) > 14) {
+                            botCar.pos.copy(nextOppPos);
+                            botCar.mesh.position.copy(botCar.pos);
+                        }
+                        netState.targetOppPos = nextOppPos;
                     }
                     if (msg.pYaw !== undefined && botCar) {
-                        botCar.yaw = msg.pYaw;
-                        botCar.mesh.rotation.set(0, botCar.yaw, 0);
+                        netState.targetOppYaw = msg.pYaw;
                     }
                     if (msg.bPos && playerCar) {
                         const remotePos = new THREE.Vector3().fromArray(msg.bPos);
-                        if (playerCar.pos.distanceTo(remotePos) > 1.8) {
-                            playerCar.pos.lerp(remotePos, 0.55);
+                        if (playerCar.pos.distanceTo(remotePos) > 2.2) {
+                            playerCar.pos.lerp(remotePos, 0.35);
                             playerCar.mesh.position.copy(playerCar.pos);
                         }
                     }
-                    if (msg.bYaw !== undefined && playerCar) {
-                        playerCar.yaw = msg.bYaw;
-                    }
                     if (msg.ballPos && ball) {
-                        ball.pos.fromArray(msg.ballPos);
-                        ball.mesh.position.copy(ball.pos);
+                        const nextBallPos = new THREE.Vector3().fromArray(msg.ballPos);
+                        if (!netState.targetBallPos || ball.pos.distanceTo(nextBallPos) > 10) {
+                            ball.pos.copy(nextBallPos);
+                            ball.mesh.position.copy(ball.pos);
+                        }
+                        netState.targetBallPos = nextBallPos;
                         if (ballTargetRing) {
                             ballTargetRing.position.set(ball.pos.x, 0.08, ball.pos.z);
                         }
@@ -2015,6 +2026,9 @@
         }
 
         function resetPositionsForKickoff() {
+            netState.targetOppPos = null;
+            netState.targetOppYaw = null;
+            netState.targetBallPos = null;
             if (ball) {
                 ball.pos.set(0, PHYSICS.BALL_RADIUS + 2, 0);
                 ball.vel.set(0, 0, 0);
@@ -2802,10 +2816,24 @@
                 if (netState.role !== 'guest') {
                     updateBotAI(dt);
                     updateBallAndCollisions(dt);
-                } else if (ball) {
-                    ball.mesh.position.copy(ball.pos);
-                    if (ballTargetRing) {
-                        ballTargetRing.position.set(ball.pos.x, 0.08, ball.pos.z);
+                } else {
+                    if (botCar && netState.targetOppPos) {
+                        botCar.pos.lerp(netState.targetOppPos, Math.min(1, 14 * dt));
+                        botCar.mesh.position.copy(botCar.pos);
+                    }
+                    if (botCar && netState.targetOppYaw !== null) {
+                        let diff = netState.targetOppYaw - botCar.yaw;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        botCar.yaw += diff * Math.min(1, 14 * dt);
+                        botCar.mesh.rotation.set(0, botCar.yaw, 0);
+                    }
+                    if (ball && netState.targetBallPos) {
+                        ball.pos.lerp(netState.targetBallPos, Math.min(1, 16 * dt));
+                        ball.mesh.position.copy(ball.pos);
+                        if (ballTargetRing) {
+                            ballTargetRing.position.set(ball.pos.x, 0.08, ball.pos.z);
+                        }
                     }
                 }
                 syncBrazilNetwork(now);
