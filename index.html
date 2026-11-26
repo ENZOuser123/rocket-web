@@ -760,6 +760,7 @@
         let isMuted = false;
         let activeBallStyle = 'carbon';
         let customBallTextureRef = null;
+        let playerLevel = 1;
         const PROFILE_STORAGE_KEY = 'rw_profile_v1';
 
         const BR_SERVER_PREFIX = 'RW-BR-SAO-';
@@ -1113,23 +1114,15 @@
                 </div>
             `];
 
-            if (activeRoomCode) {
-                if (netState.role === 'guest') {
-                    const adminNick = netState.remoteNick || 'Criador da Sala';
-                    rows.push(`
-                        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 border border-amber-400/40">
-                            <span class="font-bold text-amber-200">${adminNick} 👑</span>
-                            <span class="text-[10px] font-extrabold uppercase text-amber-300">ADMIN DA SALA</span>
-                        </div>
-                    `);
-                } else if (netState.remoteNick) {
-                    rows.push(`
-                        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10">
-                            <span class="font-bold text-sky-200">${netState.remoteNick}</span>
-                            <span class="text-[10px] font-bold uppercase text-emerald-300">Amigo na Sala</span>
-                        </div>
-                    `);
-                }
+            if (netState.remoteNick) {
+                const remoteRole = isAdmin ? 'JOGADOR BR' : 'ADMIN DA SALA 👑';
+                const remoteClass = isAdmin ? 'text-emerald-300' : 'text-amber-300';
+                rows.push(`
+                    <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10">
+                        <span class="font-bold text-white">${netState.remoteNick}</span>
+                        <span class="text-[10px] font-extrabold uppercase ${remoteClass}">${remoteRole}</span>
+                    </div>
+                `);
             }
 
             listEl.innerHTML = rows.join('');
@@ -1635,10 +1628,20 @@
         }
 
         function updatePointsHUD() {
+            // Calcula o nível com base nos pontos acumulados (cada 250 PTS sobe 1 nível)
+            const calculatedLevel = 1 + Math.floor(Math.max(0, playerPoints) / 250);
+            if (calculatedLevel > playerLevel) {
+                playerLevel = calculatedLevel;
+                saveProfileToStorage();
+            }
+
+            const lvlStr = `LVL ${playerLevel}`;
             const ptsStr = `${playerPoints} PTS`;
+            const hudLvl = document.getElementById('hud-player-level');
             const hudPts = document.getElementById('hud-player-points');
             const menuPts = document.getElementById('menu-points-badge');
             const shopPts = document.getElementById('shop-points-display');
+            if (hudLvl) hudLvl.textContent = lvlStr;
             if (hudPts) hudPts.textContent = ptsStr;
             if (menuPts) menuPts.textContent = ptsStr;
             if (shopPts) shopPts.textContent = ptsStr;
