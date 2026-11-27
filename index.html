@@ -1060,8 +1060,8 @@
 
         function isTouchMobileDevice() {
             const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-            const mobileViewportOrUa = window.innerWidth <= 1024 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-            return Boolean(hasTouch || mobileViewportOrUa);
+            const isMobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+            return Boolean(hasTouch || isMobileUa);
         }
 
         function loadSavedProfile() {
@@ -1291,6 +1291,11 @@
                 } else if (msg.type === 'START_BR' && !isHost) {
                     const chosenMap = (msg.map && MAP_THEMES[msg.map]) ? msg.map : selectedMap;
                     const myAssignedTeam = msg.guestTeam === 'orange' ? 'orange' : 'blue';
+                    if (msg.mode === 'training' || msg.mode === '1v1') {
+                        gameMode = msg.mode;
+                        const modeBadge = document.getElementById('menu-mode-badge');
+                        if (modeBadge) modeBadge.textContent = gameMode === 'training' ? 'TREINO' : '1V1';
+                    }
                     applyTeamAssignment(myAssignedTeam, chosenMap);
                     const roomsModal = document.getElementById('modal-rooms');
                     if (roomsModal) roomsModal.classList.add('hidden');
@@ -1298,11 +1303,22 @@
                     const teamName = myAssignedTeam === 'orange' ? 'TIME LARANJA' : 'TIME AZUL';
                     showAnnouncer('TIMES SORTEADOS!', `Voce foi para o ${teamName}`, 1800);
                 } else if (msg.type === 'KICKOFF_BR' && !isHost) {
+                    if (msg.mode === 'training' || msg.mode === '1v1') {
+                        gameMode = msg.mode;
+                        document.getElementById('hud-mode-label').textContent = gameMode === 'training' ? 'TREINO' : '1V1';
+                        document.getElementById('btn-reset-ball').classList.toggle('hidden', gameMode !== 'training');
+                    }
                     if (msg.scoreBlue !== undefined) scoreBlue = msg.scoreBlue;
                     if (msg.scoreOrange !== undefined) scoreOrange = msg.scoreOrange;
                     updateScoreHUD();
+                    updateTimerHUD();
                     startCountdown();
                 } else if (msg.type === 'SYNC_BR' && !isHost) {
+                    if ((msg.mode === 'training' || msg.mode === '1v1') && msg.mode !== gameMode) {
+                        gameMode = msg.mode;
+                        document.getElementById('hud-mode-label').textContent = gameMode === 'training' ? 'TREINO' : '1V1';
+                        document.getElementById('btn-reset-ball').classList.toggle('hidden', gameMode !== 'training');
+                    }
                     if (msg.pPos && botCar) {
                         const nextOppPos = new THREE.Vector3().fromArray(msg.pPos);
                         if (!netState.targetOppPos || botCar.pos.distanceTo(nextOppPos) > 14) {
@@ -1441,6 +1457,7 @@
             } else if (netState.role === 'host' && playerCar && botCar && ball) {
                 const payload = {
                     type: 'SYNC_BR',
+                    mode: gameMode,
                     pPos: playerCar.pos.toArray(),
                     pYaw: playerCar.yaw,
                     bPos: botCar.pos.toArray(),
@@ -2690,6 +2707,7 @@
             if (netState.role === 'host') {
                 sendBrMessage({
                     type: 'KICKOFF_BR',
+                    mode: gameMode,
                     scoreBlue,
                     scoreOrange
                 });
@@ -3323,6 +3341,7 @@
                 applyTeamAssignment(hostTeam, chosenMap);
                 sendBrMessage({
                     type: 'START_BR',
+                    mode: gameMode,
                     map: chosenMap,
                     guestTeam
                 });
