@@ -766,8 +766,10 @@
         const PHYSICS = {
             GRAVITY: -38,
             BALL_RADIUS: 4.2,
-            BALL_RESTITUTION: 0.78,
-            BALL_DRAG: 0.9985,
+            BALL_RESTITUTION: 0.84,
+            BALL_DRAG: 0.999,
+            BALL_GRAVITY_SCALE: 1.05,
+            BALL_HIT_MULTIPLIER: 1.32,
             CAR_MAX_SPEED: 54,
             CAR_BOOST_SPEED: 76,
             CAR_ACCEL: 86,
@@ -1565,14 +1567,7 @@
             const activeCars = hasActiveBot() ? [playerCar, botCar] : [playerCar];
 
             for (let s = 0; s < steps; s++) {
-                const nearCeiling = ball.pos.y >= ceilingBallY - 0.5;
-                const ballHorizSpeed = Math.hypot(ball.vel.x, ball.vel.z);
-
-                if (nearCeiling && ballHorizSpeed > 14 && ball.vel.y > -1.5) {
-                    ball.vel.y = Math.max(ball.vel.y, 0);
-                } else {
-                    ball.vel.y += PHYSICS.GRAVITY * 1.48 * subDt;
-                }
+                ball.vel.y += PHYSICS.GRAVITY * PHYSICS.BALL_GRAVITY_SCALE * subDt;
 
                 ball.pos.addScaledVector(ball.vel, subDt);
                 ball.vel.multiplyScalar(Math.pow(PHYSICS.BALL_DRAG, subDt * 60));
@@ -1580,12 +1575,12 @@
                 if (ball.pos.y < r) {
                     ball.pos.y = r;
                     if (ball.vel.y < 0) ball.vel.y = -ball.vel.y * PHYSICS.BALL_RESTITUTION;
-                    ball.vel.x *= 0.994;
-                    ball.vel.z *= 0.994;
+                    ball.vel.x *= 0.996;
+                    ball.vel.z *= 0.996;
                 } else if (ball.pos.y > ceilingBallY) {
                     ball.pos.y = ceilingBallY;
-                    if (ball.vel.y > 0) {
-                        ball.vel.y = ballHorizSpeed > 14 ? 0 : -Math.abs(ball.vel.y) * 0.45;
+                    if (ball.vel.y >= 0) {
+                        ball.vel.y = -Math.max(8, Math.abs(ball.vel.y) * 0.68);
                     }
                     ball.vel.x *= 0.994;
                     ball.vel.z *= 0.994;
@@ -1640,12 +1635,12 @@
                         const relVel = new THREE.Vector3().subVectors(ball.vel, car.vel);
                         const sepVel = relVel.dot(normal);
                         if (sepVel < 2.5) {
-                            const hitPower = car.flipTimer > 0 ? 1.55 : 1.28;
+                            const hitPower = (car.flipTimer > 0 ? 1.55 : 1.28) * PHYSICS.BALL_HIT_MULTIPLIER;
                             const effectiveSep = Math.min(sepVel, -4);
                             const impulse = -(1 + PHYSICS.BALL_RESTITUTION) * effectiveSep * hitPower;
                             ball.vel.addScaledVector(normal, impulse);
-                            ball.vel.addScaledVector(car.vel, 0.38);
-                            ball.vel.y = Math.max(ball.vel.y, 5.5);
+                            ball.vel.addScaledVector(car.vel, 0.48);
+                            ball.vel.y = Math.max(ball.vel.y, 9.5);
                             sound.playBallHit(Math.min(1.5, Math.abs(effectiveSep) / 35));
 
                             const now = performance.now();
